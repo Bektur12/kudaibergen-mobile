@@ -1,60 +1,38 @@
-import { Tabs } from 'expo-router'
-import { useColorScheme } from 'react-native'
-import { Colors, Spacing } from '@/constants/theme'
-import { Ionicons } from '@expo/vector-icons'
+import { Stack } from 'expo-router'
 
 export default function BuyerLayout() {
-	const colorScheme = useColorScheme() ?? 'dark'
-	const isDark = colorScheme === 'dark'
-	const colors = isDark ? Colors.dark : Colors.light
-
 	return (
-		<Tabs
+		<Stack
 			screenOptions={{
 				headerShown: false,
-				tabBarStyle: {
-					backgroundColor: colors.surface,
-					borderTopColor: colors.border,
-					borderTopWidth: 1,
-					paddingBottom: 8,
-					paddingTop: 8,
-					height: 64,
-				},
-				tabBarActiveTintColor: colors.accent,
-				tabBarInactiveTintColor: colors.textTertiary,
-				tabBarLabelStyle: {
-					fontSize: 11,
-					fontWeight: '600',
-				},
 			}}
 		>
-			<Tabs.Screen
-				name="index"
+			<Stack.Screen
+				name="(tabs)"
 				options={{
-					title: 'Запросы',
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="list-outline" size={size} color={color} />
-					),
+					animationEnabled: false,
 				}}
 			/>
-			<Tabs.Screen
-				name="messages"
+			<Stack.Screen
+				name="create-request"
 				options={{
-					title: 'Чат',
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="chatbubble-outline" size={size} color={color} />
-					),
+					animationEnabled: true,
+					presentation: 'card',
 				}}
 			/>
-			<Tabs.Screen
-				name="profile"
+			<Stack.Screen
+				name="request/[id]"
 				options={{
-					title: 'Профиль',
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="person-outline" size={size} color={color} />
-					),
+					animationEnabled: true,
+					presentation: 'card',
 				}}
 			/>
-		</Tabs>
+			<Stack.Screen
+				name="chat"
+				options={{
+					animationEnabled: true,
+				}}
+			/>
+		</Stack>
 	)
 }
