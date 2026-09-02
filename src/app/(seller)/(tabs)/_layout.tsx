@@ -56,6 +56,15 @@ export default function SellerTabsLayout() {
 				}}
 			/>
 			<Tabs.Screen
+				name="analytics"
+				options={{
+					title: 'Аналитика',
+					tabBarIcon: ({ color, size }) => (
+						<Ionicons name="bar-chart-outline" size={size} color={color} />
+					),
+				}}
+			/>
+			<Tabs.Screen
 				name="profile"
 				options={{
 					title: 'Профиль',

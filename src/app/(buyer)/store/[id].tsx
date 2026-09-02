@@ -17,8 +17,8 @@ import { StarRating } from '@/components/ui/StarRating'
 import { Divider } from '@/components/ui/Divider'
 import { Ionicons } from '@expo/vector-icons'
 
-export default function StoreProfileScreen() {
-	const { storeId } = useLocalSearchParams()
+export default function StoreDetailScreen() {
+	const { id } = useLocalSearchParams()
 	const colorScheme = useColorScheme() ?? 'dark'
 	const isDark = colorScheme === 'dark'
 	const colors = isDark ? Colors.dark : Colors.light
@@ -129,13 +129,6 @@ export default function StoreProfileScreen() {
 								</View>
 							</Card>
 						))}
-
-						<Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.four }]}>
-							О магазине
-						</Text>
-						<Text style={[styles.description, { color: colors.textSecondary }]}>
-							АвтоПрофи - сеть автомагазинов Кыргызстана специализирующаяся на продаже оригинальных запчастей и аксессуаров для всех основных марок автомобилей.
-						</Text>
 					</View>
 				)}
 
@@ -164,7 +157,7 @@ export default function StoreProfileScreen() {
 
 				{activeTab === 'services' && (
 					<View style={styles.tabContent}>
-						{['Диагностика', 'Замена масла', 'Шиномонтаж', 'Техническое обслуживание'].map((service, i) => (
+						{['Диагностика', 'Замена масла', 'Шиномонтаж', 'ТО'].map((service, i) => (
 							<Card key={i} variant="outlined" style={styles.serviceCard}>
 								<Text style={[styles.serviceTitle, { color: colors.text }]}>
 									{service}
@@ -305,10 +298,6 @@ const styles = StyleSheet.create({
 	phone: {
 		fontSize: 13,
 		fontWeight: '600',
-	},
-	description: {
-		fontSize: 14,
-		lineHeight: 20,
 	},
 	reviewCard: {
 		padding: Spacing.three,
