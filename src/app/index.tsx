@@ -9,11 +9,11 @@ export default function RootIndex() {
 	}
 
 	if (user.role === 'buyer') {
-		return <Redirect href="/(buyer)" />
+		return <Redirect href="/(buyer)/(tabs)" />
 	}
 
 	if (user.role === 'seller') {
-		return <Redirect href="/(seller)" />
+		return <Redirect href="/(seller)/(tabs)" />
 	}
 
 	return <Redirect href="/auth/login" />

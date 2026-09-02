@@ -31,7 +31,7 @@ export default function LoginScreen() {
 		}
 		try {
 			await login(email, password, role)
-			router.replace('/(app)/')
+			router.replace('/')
 		} catch (err) {
 			setError('Login failed')
 		}

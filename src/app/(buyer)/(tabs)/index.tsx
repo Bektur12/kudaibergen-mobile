@@ -10,7 +10,6 @@ import { useColorScheme } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme'
 import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -20,130 +19,143 @@ export default function BuyerHome() {
 	const colors = isDark ? Colors.dark : Colors.light
 	const router = useRouter()
 
-	const myVehicle = {
-		name: 'Toyota Camry 50',
-		year: 2012,
-		engine: '2.5 бензин',
-	}
-
-	const activeRequests = [
-		{
-			id: '1',
-			title: 'Camry 50 - всему рынку',
-			offers: 7,
-			minPrice: 3200,
-			timeLeft: '08:14',
-		},
-		{
-			id: '2',
-			title: 'Фара левая',
-			offers: 0,
-			timeLeft: '24:03',
-		},
-	]
-
-	const history = [
-		{
-			title: 'Колодки передние',
-			date: 'Куплено 18 августа · Ряд 14',
-			price: 1800,
-		},
-		{
-			title: 'Масло 5W-30, 4 л',
-			date: 'Куплено 2 августа · Ряд 28',
-			price: 3400,
-		},
-	]
-
 	return (
 		<View style={[styles.container, { backgroundColor: colors.background }]}>
+			{/* Header */}
+			<View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+				<View style={styles.headerLeft}>
+					<Ionicons name="location-outline" size={20} color={colors.accent} />
+					<Text style={[styles.city, { color: colors.text }]}>Бишкек</Text>
+				</View>
+				<Ionicons name="notifications-outline" size={24} color={colors.text} />
+			</View>
+
 			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-				{/* Your Vehicle Section */}
+				{/* Search Bar */}
+				<TouchableOpacity
+					style={[styles.searchBar, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+					onPress={() => router.push('/(buyer)/search')}
+				>
+					<Ionicons name="search" size={20} color={colors.textSecondary} />
+					<Text style={[styles.searchText, { color: colors.textTertiary }]}>
+						Авто, запчасть, услуга...
+					</Text>
+				</TouchableOpacity>
+
+				{/* My Vehicle */}
 				<View style={styles.section}>
-					<Text style={[styles.label, { color: colors.textSecondary }]}>
-						Ваша машина
+					<Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+						Мой автомобиль
 					</Text>
-					<Text style={[styles.vehicleTitle, { color: colors.text }]}>
-						{myVehicle.name}
-					</Text>
-					<Text style={[styles.vehicleSubtitle, { color: colors.textSecondary }]}>
-						{myVehicle.year} · {myVehicle.engine}
-					</Text>
+					<Card variant="outlined" style={styles.vehicleCard}>
+						<View style={styles.vehicleContent}>
+							<View>
+								<Ionicons name="car" size={32} color={colors.accent} />
+								<Text style={[styles.vehicleModel, { color: colors.text }]}>
+									Toyota Camry 2020
+								</Text>
+							</View>
+							<Button
+								title="Найти запчасть"
+								variant="primary"
+								size="small"
+								onPress={() => router.push('/(buyer)/search?category=parts')}
+							/>
+						</View>
+					</Card>
 				</View>
 
-				{/* Find Part Button */}
-				<Button
-					title="Найти запчасть"
-					onPress={() => router.push('/(buyer)/create-request')}
-					size="large"
-					style={styles.findButton}
-					icon={<Ionicons name="search" size={20} color={colors.background} />}
-				/>
+				{/* Quick Categories */}
+				<View style={styles.section}>
+					<View style={styles.categoryGrid}>
+						{/* Cars */}
+						<TouchableOpacity
+							style={[styles.categoryButton, { backgroundColor: colors.surfaceAlt }]}
+							onPress={() => router.push('/(buyer)/search?category=cars')}
+						>
+							<Ionicons name="car" size={28} color={colors.accent} />
+							<Text style={[styles.categoryLabel, { color: colors.text }]}>
+								🚗 Авто
+							</Text>
+						</TouchableOpacity>
 
-				{/* Active Requests */}
-				{activeRequests.length > 0 && (
-					<View style={styles.section}>
-						{activeRequests.map((req) => (
-							<Card
-								key={req.id}
-								variant="outlined"
-								style={styles.requestCard}
-								onPress={() => router.push(`/(buyer)/request/${req.id}`)}
-							>
-								<View style={styles.requestHeader}>
-									<View>
-										<Text style={[styles.requestTitle, { color: colors.text }]}>
-											{req.title}
-										</Text>
-										{req.minPrice && (
-											<Text style={[styles.priceInfo, { color: colors.textSecondary }]}>
-												от {req.minPrice.toLocaleString('ru-KZ')} сом
-											</Text>
-										)}
-									</View>
-									<Badge
-										label={`${req.offers} ответов`}
-										variant="accent"
-										size="medium"
-									/>
-								</View>
-								<Text style={[styles.timeLeft, { color: colors.accent }]}>
-									{req.timeLeft}
-								</Text>
-							</Card>
-						))}
+						{/* Parts */}
+						<TouchableOpacity
+							style={[styles.categoryButton, { backgroundColor: colors.surfaceAlt }]}
+							onPress={() => router.push('/(buyer)/search?category=parts')}
+						>
+							<Ionicons name="settings" size={28} color={colors.warning} />
+							<Text style={[styles.categoryLabel, { color: colors.text }]}>
+								🔧 Запчасти
+							</Text>
+						</TouchableOpacity>
+
+						{/* Services */}
+						<TouchableOpacity
+							style={[styles.categoryButton, { backgroundColor: colors.surfaceAlt }]}
+							onPress={() => router.push('/(buyer)/search?category=services')}
+						>
+							<Ionicons name="hammer" size={28} color={colors.success} />
+							<Text style={[styles.categoryLabel, { color: colors.text }]}>
+								🔧 Услуги
+							</Text>
+						</TouchableOpacity>
+
+						{/* Map */}
+						<TouchableOpacity
+							style={[styles.categoryButton, { backgroundColor: colors.surfaceAlt }]}
+							onPress={() => router.push('/(buyer)/map')}
+						>
+							<Ionicons name="map" size={28} color={colors.warning} />
+							<Text style={[styles.categoryLabel, { color: colors.text }]}>
+								📍 Рядом
+							</Text>
+						</TouchableOpacity>
 					</View>
-				)}
+				</View>
 
-				{/* History Section */}
-				{history.length > 0 && (
-					<View style={styles.section}>
+				{/* Новые объявления */}
+				<View style={styles.section}>
+					<View style={styles.sectionHeader}>
 						<Text style={[styles.sectionTitle, { color: colors.text }]}>
-							ИСТОРИЯ
+							Новые объявления
 						</Text>
-						{history.map((item, index) => (
-							<Card
-								key={index}
-								variant="default"
-								style={styles.historyCard}
-							>
-								<View style={styles.historyContent}>
-									<View>
-										<Text style={[styles.historyTitle, { color: colors.text }]}>
-											{item.title}
-										</Text>
-										<Text style={[styles.historyDate, { color: colors.textTertiary }]}>
-											{item.date}
+						<TouchableOpacity onPress={() => router.push('/(buyer)/search')}>
+							<Text style={[styles.seeAll, { color: colors.accent }]}>
+								Все →
+							</Text>
+						</TouchableOpacity>
+					</View>
+
+					{/* Sample listings */}
+					{[1, 2].map((i) => (
+						<Card key={i} variant="outlined" style={styles.listingCard}>
+							<View style={styles.listingImage} />
+							<View style={styles.listingInfo}>
+								<Text style={[styles.listingTitle, { color: colors.text }]}>
+									Toyota Camry 70
+								</Text>
+								<Text style={[styles.listingMeta, { color: colors.textSecondary }]}>
+									2020 • 2.5 • AT
+								</Text>
+								<Text style={[styles.listingPrice, { color: colors.accent }]}>
+									$23 500
+								</Text>
+								<View style={styles.listingFooter}>
+									<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+										<Ionicons name="star" size={14} color={colors.accent} />
+										<Text style={[styles.rating, { color: colors.textSecondary }]}>
+											4.8
 										</Text>
 									</View>
-									<Text style={[styles.historyPrice, { color: colors.accent }]}>
-										{item.price.toLocaleString('ru-KZ')} сом
+									<Text style={[styles.location, { color: colors.textTertiary }]}>
+										📍 Бишкек
 									</Text>
 								</View>
-							</Card>
-						))}
-					</View>
-				)}
+							</View>
+						</Card>
+					))}
+				</View>
 			</ScrollView>
 		</View>
 	)
@@ -153,76 +165,132 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 	},
+	header: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		paddingHorizontal: Spacing.four,
+		paddingVertical: Spacing.three,
+		borderBottomWidth: 1,
+	},
+	headerLeft: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Spacing.one,
+	},
+	city: {
+		fontSize: 16,
+		fontWeight: '700',
+	},
 	content: {
 		flex: 1,
 		padding: Spacing.four,
 	},
+	searchBar: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		paddingHorizontal: Spacing.three,
+		paddingVertical: Spacing.two,
+		borderRadius: 24,
+		borderWidth: 1,
+		marginBottom: Spacing.four,
+		gap: Spacing.two,
+	},
+	searchText: {
+		fontSize: 14,
+		fontWeight: '500',
+	},
 	section: {
 		marginBottom: Spacing.five,
 	},
-	label: {
-		fontSize: 13,
-		fontWeight: '500',
-		marginBottom: Spacing.one,
-	},
-	vehicleTitle: {
-		fontSize: Typography.heading.fontSize,
-		fontWeight: '700',
-		marginBottom: Spacing.one,
-	},
-	vehicleSubtitle: {
-		fontSize: 14,
-	},
-	findButton: {
-		marginBottom: Spacing.five,
-	},
-	requestCard: {
-		marginBottom: Spacing.three,
-		paddingVertical: Spacing.three,
-	},
-	requestHeader: {
+	sectionHeader: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
-		alignItems: 'flex-start',
-		marginBottom: Spacing.two,
-	},
-	requestTitle: {
-		fontSize: 16,
-		fontWeight: '600',
-		marginBottom: Spacing.one,
-	},
-	priceInfo: {
-		fontSize: 13,
-	},
-	timeLeft: {
-		fontSize: 14,
-		fontWeight: '700',
+		alignItems: 'center',
+		marginBottom: Spacing.three,
 	},
 	sectionTitle: {
-		fontSize: 12,
+		fontSize: Typography.secondary.fontSize,
 		fontWeight: '700',
 		textTransform: 'uppercase',
-		marginBottom: Spacing.three,
 		letterSpacing: 0.5,
 	},
-	historyCard: {
-		marginBottom: Spacing.two,
+	seeAll: {
+		fontSize: 14,
+		fontWeight: '600',
 	},
-	historyContent: {
+	vehicleCard: {
+		padding: Spacing.three,
+	},
+	vehicleContent: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
 	},
-	historyTitle: {
-		fontSize: 15,
-		fontWeight: '600',
-		marginBottom: Spacing.one,
-	},
-	historyDate: {
-		fontSize: 12,
-	},
-	historyPrice: {
+	vehicleModel: {
 		fontSize: 16,
 		fontWeight: '700',
+		marginTop: Spacing.two,
+	},
+	categoryGrid: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: Spacing.two,
+		justifyContent: 'space-between',
+	},
+	categoryButton: {
+		width: '48%',
+		paddingVertical: Spacing.four,
+		paddingHorizontal: Spacing.three,
+		borderRadius: 12,
+		justifyContent: 'center',
+		alignItems: 'center',
+		gap: Spacing.two,
+	},
+	categoryLabel: {
+		fontSize: 12,
+		fontWeight: '600',
+		textAlign: 'center',
+	},
+	listingCard: {
+		marginBottom: Spacing.three,
+		flexDirection: 'row',
+		gap: Spacing.three,
+	},
+	listingImage: {
+		width: 100,
+		height: 100,
+		borderRadius: 8,
+		backgroundColor: '#ccc',
+	},
+	listingInfo: {
+		flex: 1,
+		justifyContent: 'space-between',
+	},
+	listingTitle: {
+		fontSize: 16,
+		fontWeight: '700',
+	},
+	listingMeta: {
+		fontSize: 13,
+		marginTop: Spacing.one,
+	},
+	listingPrice: {
+		fontSize: 16,
+		fontWeight: '700',
+		marginTop: Spacing.one,
+	},
+	listingFooter: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginTop: Spacing.two,
+	},
+	rating: {
+		fontSize: 12,
+		fontWeight: '600',
+	},
+	location: {
+		fontSize: 12,
 	},
 })

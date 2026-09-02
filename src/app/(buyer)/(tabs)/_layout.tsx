@@ -3,7 +3,7 @@ import { useColorScheme } from 'react-native'
 import { Colors } from '@/constants/theme'
 import { Ionicons } from '@expo/vector-icons'
 
-export default function TabsLayout() {
+export default function BuyerTabsLayout() {
 	const colorScheme = useColorScheme() ?? 'dark'
 	const isDark = colorScheme === 'dark'
 	const colors = isDark ? Colors.dark : Colors.light
@@ -38,11 +38,11 @@ export default function TabsLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name="requests"
+				name="search"
 				options={{
-					title: 'Запросы',
+					title: 'Поиск',
 					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="list-outline" size={size} color={color} />
+						<Ionicons name="search-outline" size={size} color={color} />
 					),
 				}}
 			/>
