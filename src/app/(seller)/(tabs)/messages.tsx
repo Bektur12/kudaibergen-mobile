@@ -1,38 +1,16 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
-import { useColorScheme } from 'react-native'
-import { Colors, Spacing } from '@/constants/theme'
-import { Header } from '@/components/ui/Header'
+import { useRouter } from 'expo-router'
+import MessagesScreen from '@/screens/buyer/MessagesScreen'
 
 export default function SellerMessagesScreen() {
-	const colorScheme = useColorScheme() ?? 'dark'
-	const isDark = colorScheme === 'dark'
-	const colors = isDark ? Colors.dark : Colors.light
+  const router = useRouter()
 
-	return (
-		<View style={[styles.container, { backgroundColor: colors.background }]}>
-			<Header title="Чат" />
-			<View style={styles.content}>
-				<Text style={[styles.placeholder, { color: colors.textSecondary }]}>
-					Нет сообщений
-				</Text>
-			</View>
-		</View>
-	)
+  const handleOpenChat = (id: number) => {
+    router.push({
+      pathname: '/(seller)/chat/[id]' as any,
+      params: { id: id.toString() },
+    })
+  }
+
+  return <MessagesScreen onOpenChat={handleOpenChat} />
 }
-
-const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-	},
-	content: {
-		flex: 1,
-		justifyContent: 'center',
-		alignItems: 'center',
-		padding: Spacing.four,
-	},
-	placeholder: {
-		fontSize: 16,
-		fontWeight: '500',
-	},
-})

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../.."
+		},
+		{
+			"path": "../../../../../../Downloads/Design Specification Document (1)"
+		}
+	],
+	"settings": {
+		"liveServer.settings.port": 5501
+	}
+}

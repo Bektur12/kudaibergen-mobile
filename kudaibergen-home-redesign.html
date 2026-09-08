@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kudaibergen — Home redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     DESIGN TOKENS
+     One family (Golos Text — strong native Cyrillic support,
+     geometric/technical feel fitting an auto marketplace).
+     Warm-dark / cool-light asymmetric neutral palette so the
+     product doesn't read as generic SaaS grey or AI-cream-default.
+     ============================================================ */
+  :root{
+    --font: 'Golos Text', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* semantic brand — one accent per meaning, never mixed */
+    --primary:        #FF6B35;   /* actions, prices, CTAs        */
+    --primary-press:  #E2551E;
+    --primary-tint:   #FFEDE3;
+    --secondary:      #F7931E;   /* rating star fill only        */
+    --error:          #EF5350;   /* urgency                      */
+    --error-tint:     #FDEBEA;
+    --success:        #2F9E58;   /* availability                 */
+    --success-tint:   #E7F6ED;
+    --verified:       #2F6FED;   /* trust / seller verification  */
+
+    /* light theme neutrals — cool, quiet, lets photos/price lead */
+    --bg:            #F5F6F8;
+    --surface:       #FFFFFF;
+    --surface-alt:   #FAFBFC;
+    --border:        #E4E7EC;
+    --text-1:        #14161A;
+    --text-2:        #5B6270;
+    --text-3:        #8A90A0;
+    --overlay:       rgba(15,17,20,.46);
+    --shadow-float:  0 10px 30px rgba(20,22,26,.16);
+
+    --r-xs: 6px; --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-pill: 999px;
+    --sp-xs: 4px; --sp-sm: 8px; --sp-md: 12px; --sp-lg: 16px; --sp-xl: 24px; --sp-xxl: 32px;
+  }
+
+  [data-theme="dark"]{
+    /* dark theme neutrals — warm "garage at night", not near-black-neon */
+    --bg:            #14120E;
+    --surface:       #1E1B16;
+    --surface-alt:   #262218;
+    --border:        #332E24;
+    --text-1:        #F6F3EC;
+    --text-2:        #B6AE9E;
+    --text-3:        #857D6C;
+    --overlay:       rgba(0,0,0,.6);
+    --primary-tint:  #3A2416;
+    --error-tint:    #3A1E1D;
+    --success-tint:  #17301F;
+    --shadow-float:  0 10px 34px rgba(0,0,0,.5);
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:var(--font);
+    background:#0f1013;
+    display:flex; flex-direction:column; align-items:center; gap:18px;
+    padding:32px 12px 60px;
+    min-height:100vh;
+  }
+
+  /* -------- external demo chrome (not part of the app itself) -------- */
+  .demo-bar{
+    display:flex; align-items:center; gap:14px;
+    color:#cfd3da; font-family:var(--font); font-size:13px;
+  }
+  .demo-bar button{
+    font-family:var(--font); font-size:13px; font-weight:600;
+    border:1px solid #33363d; background:#1a1b1f; color:#e7e9ee;
+    padding:8px 14px; border-radius:var(--r-pill); cursor:pointer;
+  }
+  .demo-bar button.active{ background:var(--primary); border-color:var(--primary); color:#fff; }
+
+  /* -------- phone frame -------- */
+  .device{
+    width:390px; height:844px;
+    background:var(--bg);
+    border-radius:44px;
+    border:10px solid #050505;
+    box-shadow:0 30px 60px rgba(0,0,0,.5);
+    position:relative;
+    overflow:hidden;
+    transition:background .25s ease;
+  }
+  .notch{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    width:120px; height:26px; background:#050505; border-radius:14px; z-index:50;
+  }
+  .screen{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+  }
+  .scroll{
+    flex:1; overflow-y:auto; padding-bottom:8px;
+    scrollbar-width:none;
+  }
+  .scroll::-webkit-scrollbar{ display:none; }
+
+  /* -------- top bar -------- */
+  .topbar{
+    padding:52px var(--sp-lg) var(--sp-sm);
+    display:flex; align-items:flex-start; justify-content:space-between;
+  }
+  .city{ display:flex; flex-direction:column; gap:2px; }
+  .city small{ font-size:12px; color:var(--text-3); font-weight:500; }
+  .city .row{ display:flex; align-items:center; gap:4px; }
+  .city .row span{ font-size:17px; font-weight:700; color:var(--text-1); }
+  .icon-btn{
+    width:38px; height:38px; border-radius:var(--r-pill);
+    background:var(--surface); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    position:relative; cursor:pointer;
+  }
+  .icon-btn .dot{
+    position:absolute; top:6px; right:7px;
+    width:8px; height:8px; border-radius:50%;
+    background:var(--error); border:2px solid var(--bg);
+  }
+
+  /* -------- search -------- */
+  .search{ padding:0 var(--sp-lg) var(--sp-md); }
+  .search-field{
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-md); padding:12px 14px;
+  }
+  .search-field span{ color:var(--text-3); font-size:14.5px; }
+
+  /* -------- quick request hero (the new one-tap feature) -------- */
+  .qr-hero{
+    margin:4px var(--sp-lg) var(--sp-lg);
+    background:linear-gradient(135deg,var(--primary) 0%,#FF8552 100%);
+    border-radius:var(--r-lg);
+    padding:18px;
+    display:flex; align-items:center; gap:14px;
+    position:relative; overflow:hidden;
+    cursor:pointer;
+    border:none;
+    text-align:left;
+    width:calc(100% - 32px);
+  }
+  .qr-hero:active{ transform:scale(.985); }
+  .qr-ring{
+    position:relative;
+    width:52px; height:52px; flex:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .qr-ring::before, .qr-ring::after{
+    content:''; position:absolute; inset:0; border-radius:50%;
+    border:1.5px solid rgba(255,255,255,.55);
+    animation:pulse 2.4s ease-out infinite;
+  }
+  .qr-ring::after{ animation-delay:1.2s; }
+  @keyframes pulse{
+    0%{ transform:scale(.6); opacity:.9; }
+    100%{ transform:scale(1.9); opacity:0; }
+  }
+  .qr-ring svg{ position:relative; z-index:2; width:24px; height:24px; }
+  .qr-copy{ flex:1; }
+  .qr-copy .eyebrow{ color:rgba(255,255,255,.85); font-size:12px; font-weight:600; margin:0 0 2px; }
+  .qr-copy h3{ margin:0; color:#fff; font-size:16px; font-weight:800; line-height:1.25; }
+  .qr-copy p{ margin:3px 0 0; color:rgba(255,255,255,.88); font-size:12.5px; font-weight:500; }
+  .qr-arrow{ flex:none; color:#fff; opacity:.9; }
+
+  /* -------- personalized promo (quiet, subordinate to hero) -------- */
+  .promo{
+    margin:0 var(--sp-lg) var(--sp-xl);
+    background:var(--surface-alt); border:1px solid var(--border);
+    border-radius:var(--r-md);
+    padding:14px 14px 14px 16px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .promo .thumb{
+    width:44px; height:44px; border-radius:var(--r-sm); flex:none;
+    background:linear-gradient(160deg,#2b2f38,#464c58);
+    display:flex; align-items:center; justify-content:center; color:#e7e9ee;
+  }
+  .promo .body{ flex:1; min-width:0; }
+  .promo .body small{ color:var(--text-3); font-size:11.5px; font-weight:500; }
+  .promo .body div{ color:var(--text-1); font-size:13.5px; font-weight:700; margin-top:1px; }
+  .promo a{
+    flex:none; font-size:12.5px; font-weight:700; color:var(--primary);
+    text-decoration:none; padding:7px 12px; border-radius:var(--r-pill);
+    background:var(--primary-tint);
+  }
+
+  /* -------- categories -------- */
+  .section-label{
+    padding:0 var(--sp-lg) var(--sp-sm);
+    font-size:13px; font-weight:700; color:var(--text-2);
+  }
+  .cat-grid{
+    padding:0 var(--sp-lg) var(--sp-xl);
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .cat-card{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-md); padding:14px;
+    display:flex; align-items:center; gap:10px;
+    cursor:pointer;
+  }
+  .cat-ic{
+    width:38px; height:38px; border-radius:var(--r-sm);
+    display:flex; align-items:center; justify-content:center; flex:none;
+    background:var(--primary-tint); color:var(--primary);
+  }
+  .cat-card span{ font-size:14px; font-weight:700; color:var(--text-1); }
+
+  /* -------- listings section -------- */
+  .section-header{
+    padding:0 var(--sp-lg) var(--sp-md);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .section-header h4{ margin:0; font-size:16px; font-weight:800; color:var(--text-1); }
+  .section-header a{ font-size:13px; font-weight:700; color:var(--primary); text-decoration:none; }
+
+  .listings{ padding:0 var(--sp-lg); display:flex; flex-direction:column; gap:14px; }
+  .card{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-lg); overflow:hidden;
+  }
+  .card .media{
+    position:relative; height:158px;
+    display:flex; align-items:center; justify-content:center;
+    color:rgba(255,255,255,.9);
+  }
+  .card .media.m1{ background:linear-gradient(155deg,#2c3140,#4c5468); }
+  .card .media.m2{ background:linear-gradient(155deg,#3a2f26,#6b5642); }
+  .card .media.m3{ background:linear-gradient(155deg,#233026,#3f5c46); }
+  .badge{
+    position:absolute; top:10px; left:10px;
+    font-size:11.5px; font-weight:700; padding:5px 10px; border-radius:var(--r-pill);
+    display:flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,.94); backdrop-filter:blur(6px);
+  }
+  .badge.urgent{ color:var(--error); }
+  .badge.available{ color:var(--success); }
+  .fav{
+    position:absolute; top:10px; right:10px;
+    width:30px; height:30px; border-radius:50%;
+    background:rgba(15,17,20,.4); backdrop-filter:blur(4px);
+    display:flex; align-items:center; justify-content:center; color:#fff;
+    cursor:pointer;
+  }
+  .card .body{ padding:12px 14px 14px; }
+  .price-row{ display:flex; align-items:baseline; justify-content:space-between; }
+  .price{ font-size:22px; font-weight:800; color:var(--text-1); letter-spacing:-.3px; }
+  .verified{ display:flex; align-items:center; gap:3px; font-size:11.5px; font-weight:700; color:var(--verified); }
+  .title{ margin:2px 0 0; font-size:14.5px; font-weight:700; color:var(--text-1); }
+  .specs{ margin:2px 0 0; font-size:12.5px; font-weight:500; color:var(--text-2); }
+  .meta-row{ margin-top:8px; display:flex; align-items:center; gap:12px; }
+  .meta-row .item{ display:flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:var(--text-2); }
+
+  .bottomspace{ height:14px; }
+
+  /* -------- tab bar -------- */
+  .tabbar{
+    display:flex; align-items:center; justify-content:space-around;
+    padding:8px 6px 14px;
+    background:var(--surface); border-top:1px solid var(--border);
+  }
+  .tab{
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    color:var(--text-3); font-size:10.5px; font-weight:600;
+    padding:4px 10px; cursor:pointer;
+  }
+  .tab.active{ color:var(--primary); }
+  .tab.active .tab-dot{ opacity:1; }
+  .tab-dot{
+    width:4px; height:4px; border-radius:50%; background:var(--primary);
+    opacity:0; margin-top:1px;
+  }
+
+  /* ============================================================
+     REQUEST SHEET (one-tap "ask all sellers" flow)
+     ============================================================ */
+  .backdrop{
+    position:absolute; inset:0; background:var(--overlay);
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+    z-index:80;
+  }
+  .backdrop.show{ opacity:1; pointer-events:auto; }
+
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0;
+    background:var(--surface);
+    border-radius:24px 24px 0 0;
+    z-index:90;
+    transform:translateY(100%);
+    transition:transform .32s cubic-bezier(.2,.9,.25,1);
+    max-height:88%;
+    display:flex; flex-direction:column;
+    box-shadow:var(--shadow-float);
+  }
+  .sheet.show{ transform:translateY(0); }
+  .sheet-handle{ display:flex; justify-content:center; padding:10px 0 4px; flex:none; }
+  .sheet-handle span{ width:36px; height:4px; border-radius:2px; background:var(--border); }
+  .sheet-scroll{ overflow-y:auto; padding:8px 20px 20px; }
+
+  .sheet-title{ display:flex; align-items:center; gap:10px; margin:6px 0 4px; }
+  .sheet-title .ic{
+    width:34px; height:34px; border-radius:var(--r-sm); background:var(--primary-tint);
+    display:flex; align-items:center; justify-content:center; color:var(--primary); flex:none;
+  }
+  .sheet-title h3{ margin:0; font-size:17px; font-weight:800; color:var(--text-1); }
+  .sheet-sub{ margin:0 0 18px; font-size:13px; color:var(--text-2); font-weight:500; }
+
+  .field-label{ font-size:12.5px; font-weight:700; color:var(--text-2); margin:0 0 8px; }
+  .chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .chip{
+    padding:9px 14px; border-radius:var(--r-pill);
+    border:1px solid var(--border); background:var(--surface);
+    font-size:13px; font-weight:600; color:var(--text-1);
+    cursor:pointer; user-select:none;
+  }
+  .chip.selected{ background:var(--primary); border-color:var(--primary); color:#fff; }
+
+  textarea.qtext{
+    width:100%; min-height:76px; resize:none;
+    border:1px solid var(--border); border-radius:var(--r-md);
+    background:var(--surface-alt); color:var(--text-1);
+    font-family:var(--font); font-size:14.5px; font-weight:500;
+    padding:12px 14px; margin-bottom:18px;
+  }
+  textarea.qtext::placeholder{ color:var(--text-3); }
+  textarea.qtext:focus{ outline:2px solid var(--primary); outline-offset:1px; }
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 14px; background:var(--surface-alt); border-radius:var(--r-md);
+    margin-bottom:22px;
+  }
+  .toggle-row .lab{ font-size:13.5px; font-weight:700; color:var(--text-1); }
+  .toggle-row .hint{ font-size:11.5px; color:var(--text-2); font-weight:500; margin-top:1px; }
+  .switch{
+    width:44px; height:26px; border-radius:var(--r-pill); background:var(--border);
+    position:relative; cursor:pointer; flex:none; transition:background .2s;
+  }
+  .switch::after{
+    content:''; position:absolute; top:3px; left:3px; width:20px; height:20px;
+    border-radius:50%; background:#fff; transition:transform .2s;
+    box-shadow:0 1px 3px rgba(0,0,0,.3);
+  }
+  .switch.on{ background:var(--error); }
+  .switch.on::after{ transform:translateX(18px); }
+
+  .submit-btn{
+    width:100%; border:none; border-radius:var(--r-md);
+    background:var(--primary); color:#fff;
+    font-family:var(--font); font-size:15px; font-weight:800;
+    padding:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .submit-btn:disabled{ background:var(--border); color:var(--text-3); cursor:not-allowed; }
+  .submit-btn:active:not(:disabled){ background:var(--primary-press); }
+
+  /* success state */
+  .success{ display:none; flex-direction:column; align-items:center; text-align:center; padding:18px 8px 8px; }
+  .success.show{ display:flex; }
+  .success-ring{ position:relative; width:84px; height:84px; margin-bottom:16px; }
+  .success-ring::before,.success-ring::after{
+    content:''; position:absolute; inset:0; border-radius:50%;
+    border:1.5px solid var(--success); animation:pulse 2s ease-out infinite;
+  }
+  .success-ring::after{ animation-delay:1s; }
+  .success-ring .core{
+    position:absolute; inset:14px; border-radius:50%; background:var(--success);
+    display:flex; align-items:center; justify-content:center; color:#fff;
+  }
+  .success h3{ margin:0 0 6px; font-size:17px; font-weight:800; color:var(--text-1); }
+  .success p{ margin:0 0 18px; font-size:13.5px; color:var(--text-2); font-weight:500; max-width:260px; }
+  .avatars{ display:flex; margin-bottom:20px; }
+  .avatars .av{
+    width:32px; height:32px; border-radius:50%; margin-left:-8px;
+    border:2px solid var(--surface); display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:11px; font-weight:700;
+  }
+  .avatars .av:first-child{ margin-left:0; }
+  .close-btn{
+    width:100%; border:1px solid var(--border); border-radius:var(--r-md);
+    background:var(--surface); color:var(--text-1);
+    font-family:var(--font); font-size:14.5px; font-weight:700; padding:14px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+  <div class="demo-bar">
+    <span>Демо-переключатели:</span>
+    <button id="themeBtn" onclick="toggleTheme()">🌙 Тёмная тема</button>
+  </div>
+
+  <div class="device" id="device">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="scroll">
+
+        <div class="topbar">
+          <div class="city">
+            <small>Ваш город</small>
+            <div class="row">
+              <span>Бишкек</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+          </div>
+          <div class="icon-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+            <span class="dot"></span>
+          </div>
+        </div>
+
+        <div class="search">
+          <div class="search-field">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8A90A0" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <span>Авто, запчасти, услуги…</span>
+          </div>
+        </div>
+
+        <button class="qr-hero" onclick="openSheet()">
+          <div class="qr-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </div>
+          <div class="qr-copy">
+            <p class="eyebrow">Не нашли нужное объявление?</p>
+            <h3>Спросите у продавцов напрямую</h3>
+            <p>Опишите, что ищете — предложения придут вам в чат</p>
+          </div>
+          <svg class="qr-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+
+        <div class="promo">
+          <div class="thumb">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l2-6a2 2 0 012-1h10a2 2 0 012 1l2 6"/><rect x="2" y="13" width="20" height="6" rx="2"/><circle cx="7" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg>
+          </div>
+          <div class="body">
+            <small>Рекомендуем · по вашему поиску</small>
+            <div>Запчасти для Toyota Camry</div>
+          </div>
+          <a href="#">Смотреть</a>
+        </div>
+
+        <div class="section-label">Категории</div>
+        <div class="cat-grid">
+          <div class="cat-card">
+            <div class="cat-ic">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l2-6a2 2 0 012-1h10a2 2 0 012 1l2 6"/><rect x="2" y="13" width="20" height="6" rx="2"/><circle cx="7" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg>
+            </div>
+            <span>Авто</span>
+          </div>
+          <div class="cat-card">
+            <div class="cat-ic">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 01-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 015.4-5.4l-2.5 2.5-2-2z"/></svg>
+            </div>
+            <span>Запчасти</span>
+          </div>
+          <div class="cat-card">
+            <div class="cat-ic">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09c0 .69.4 1.28 1 1.51.63.24 1.35.1 1.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06c-.43.47-.57 1.19-.33 1.82.23.6.82 1 1.51 1H21a2 2 0 010 4h-.09c-.69 0-1.28.4-1.51 1z"/></svg>
+            </div>
+            <span>Услуги</span>
+          </div>
+          <div class="cat-card">
+            <div class="cat-ic">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-6.1-7-11a7 7 0 0114 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+            </div>
+            <span>Рядом</span>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <h4>Новые объявления</h4>
+          <a href="#">Все</a>
+        </div>
+
+        <div class="listings">
+          <div class="card">
+            <div class="media m1">
+              <span class="badge urgent">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/></svg>
+                Срочно
+              </span>
+              <div class="fav">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/></svg>
+              </div>
+              <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".55"><path d="M3 13l2-6a2 2 0 012-1h10a2 2 0 012 1l2 6"/><rect x="2" y="13" width="20" height="6" rx="2"/><circle cx="7" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg>
+            </div>
+            <div class="body">
+              <div class="price-row">
+                <span class="price">$23 500</span>
+                <span class="verified">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 2.2 3.2-.4.9 3.1 2.9 1.4-1 3.1 1 3.1-2.9 1.4-.9 3.1-3.2-.4L12 22l-2.4-2.2-3.2.4-.9-3.1-2.9-1.4 1-3.1-1-3.1 2.9-1.4.9-3.1 3.2.4z"/></svg>
+                  Проверен
+                </span>
+              </div>
+              <p class="title">Toyota Camry 70, 2020</p>
+              <p class="specs">2.5L · АКПП · 42 000 км</p>
+              <div class="meta-row">
+                <span class="item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--secondary)" stroke="var(--secondary)" stroke-width="1"><path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.5 5.5 21l2-7.5L2 9h7z"/></svg>
+                  4.8 (24)
+                </span>
+                <span class="item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-6.1-7-11a7 7 0 0114 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+                  20 км
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="media m2">
+              <span class="badge available">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+                В наличии
+              </span>
+              <div class="fav">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/></svg>
+              </div>
+              <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".55"><path d="M14.7 6.3a4 4 0 01-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 015.4-5.4l-2.5 2.5-2-2z"/></svg>
+            </div>
+            <div class="body">
+              <div class="price-row">
+                <span class="price">$180</span>
+              </div>
+              <p class="title">Тормозные колодки Brembo</p>
+              <p class="specs">Для Camry 2018–2023 · новые</p>
+              <div class="meta-row">
+                <span class="item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--secondary)" stroke="var(--secondary)" stroke-width="1"><path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.5 5.5 21l2-7.5L2 9h7z"/></svg>
+                  4.9 (112)
+                </span>
+                <span class="item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-6.1-7-11a7 7 0 0114 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+                  3.5 км
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="media m3">
+              <div class="fav">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/></svg>
+              </div>
+              <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".55"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09c0 .69.4 1.28 1 1.51.63.24 1.35.1 1.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06c-.43.47-.57 1.19-.33 1.82.23.6.82 1 1.51 1H21a2 2 0 010 4h-.09c-.69 0-1.28.4-1.51 1z"/></svg>
+            </div>
+            <div class="body">
+              <div class="price-row">
+                <span class="price">от $25</span>
+                <span class="verified">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 2.2 3.2-.4.9 3.1 2.9 1.4-1 3.1 1 3.1-2.9 1.4-.9 3.1-3.2-.4L12 22l-2.4-2.2-3.2.4-.9-3.1-2.9-1.4 1-3.1-1-3.1 2.9-1.4.9-3.1 3.2.4z"/></svg>
+                  Проверен
+                </span>
+              </div>
+              <p class="title">СТО «Мотор Плюс» — диагностика</p>
+              <p class="specs">Компьютерная диагностика от 30 мин</p>
+              <div class="meta-row">
+                <span class="item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--secondary)" stroke="var(--secondary)" stroke-width="1"><path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.5 5.5 21l2-7.5L2 9h7z"/></svg>
+                  4.7 (58)
+                </span>
+                <span class="item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-6.1-7-11a7 7 0 0114 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+                  1.2 км
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottomspace"></div>
+      </div>
+
+      <nav class="tabbar">
+        <div class="tab active">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+          Главная
+          <span class="tab-dot"></span>
+        </div>
+        <div class="tab">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          Поиск
+          <span class="tab-dot"></span>
+        </div>
+        <div class="tab">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11a7 7 0 0114 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+          Карта
+          <span class="tab-dot"></span>
+        </div>
+        <div class="tab">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Чаты
+          <span class="tab-dot"></span>
+        </div>
+        <div class="tab">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+          Профиль
+          <span class="tab-dot"></span>
+        </div>
+      </nav>
+
+      <div class="backdrop" id="backdrop" onclick="closeSheet()"></div>
+
+      <div class="sheet" id="sheet">
+        <div class="sheet-handle"><span></span></div>
+        <div class="sheet-scroll">
+
+          <div id="formView">
+            <div class="sheet-title">
+              <div class="ic">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              </div>
+              <h3>Спросить у продавцов</h3>
+            </div>
+            <p class="sheet-sub">Опишите, что вам нужно — запрос увидят подходящие продавцы рядом с вами, и вы получите предложения в чат.</p>
+
+            <p class="field-label">Категория</p>
+            <div class="chip-row" id="catChips">
+              <div class="chip selected" data-chip="cat">Запчасти</div>
+              <div class="chip" data-chip="cat">Авто</div>
+              <div class="chip" data-chip="cat">Услуги</div>
+            </div>
+
+            <p class="field-label">Что вы ищете?</p>
+            <textarea class="qtext" id="qtext" placeholder="Например: тормозные колодки на Toyota Camry 2020, оригинал или аналог"></textarea>
+
+            <p class="field-label">Бюджет</p>
+            <div class="chip-row" id="budgetChips">
+              <div class="chip selected" data-chip="budget">Неважно</div>
+              <div class="chip" data-chip="budget">до $100</div>
+              <div class="chip" data-chip="budget">до $500</div>
+              <div class="chip" data-chip="budget">до $1000</div>
+            </div>
+
+            <div class="toggle-row">
+              <div>
+                <div class="lab">Нужно срочно</div>
+                <div class="hint">Поднимем запрос выше в ленте продавцов</div>
+              </div>
+              <div class="switch" id="urgentSwitch" onclick="this.classList.toggle('on')"></div>
+            </div>
+
+            <button class="submit-btn" id="submitBtn" onclick="submitRequest()" disabled>
+              Отправить продавцам
+            </button>
+          </div>
+
+          <div id="successView" class="success">
+            <div class="success-ring">
+              <div class="core">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+            </div>
+            <h3>Запрос отправлен 14 продавцам</h3>
+            <p>Как только кто-то ответит с предложением — пришлём уведомление и откроем чат</p>
+            <div class="avatars">
+              <div class="av" style="background:#FF6B35">А</div>
+              <div class="av" style="background:#2F6FED">М</div>
+              <div class="av" style="background:#2F9E58">Б</div>
+              <div class="av" style="background:#F7931E">Т</div>
+              <div class="av" style="background:#5B6270">+10</div>
+            </div>
+            <button class="close-btn" onclick="closeSheet()">Готово</button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  function toggleTheme(){
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const dark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', dark ? 'light' : 'dark');
+    btn.textContent = dark ? '🌙 Тёмная тема' : '☀️ Светлая тема';
+    btn.classList.toggle('active', !dark);
+  }
+
+  function openSheet(){
+    document.getElementById('backdrop').classList.add('show');
+    document.getElementById('sheet').classList.add('show');
+  }
+  function closeSheet(){
+    document.getElementById('backdrop').classList.remove('show');
+    document.getElementById('sheet').classList.remove('show');
+    setTimeout(()=>{
+      document.getElementById('formView').style.display = 'block';
+      document.getElementById('successView').classList.remove('show');
+    }, 300);
+  }
+
+  document.querySelectorAll('#catChips .chip').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      document.querySelectorAll('#catChips .chip').forEach(x=>x.classList.remove('selected'));
+      c.classList.add('selected');
+    });
+  });
+  document.querySelectorAll('#budgetChips .chip').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      document.querySelectorAll('#budgetChips .chip').forEach(x=>x.classList.remove('selected'));
+      c.classList.add('selected');
+    });
+  });
+
+  const qtext = document.getElementById('qtext');
+  const submitBtn = document.getElementById('submitBtn');
+  qtext.addEventListener('input', ()=>{
+    submitBtn.disabled = qtext.value.trim().length < 4;
+  });
+
+  function submitRequest(){
+    document.getElementById('formView').style.display = 'none';
+    document.getElementById('successView').classList.add('show');
+  }
+</script>
+</body>
+</html>
