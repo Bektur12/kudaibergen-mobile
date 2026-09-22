@@ -1,5 +1,6 @@
 import { router, Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
+import * as Notifications from 'expo-notifications'
 import { useColorScheme } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -30,7 +31,7 @@ function handleNotificationTap(data: Record<string, unknown>, role: 'buyer' | 's
 SplashScreen.preventAutoHideAsync()
 
 function NotificationRouting() {
-	const { user } = useAuth()
+	const { user, loading } = useAuth()
 
 	useEffect(() => {
 		const cleanup = addNotificationListeners({
@@ -40,6 +41,16 @@ function NotificationRouting() {
 		})
 		return cleanup
 	}, [user?.role])
+
+	// Cold start: the app was killed and got launched by tapping a push —
+	// addNotificationResponseReceivedListener above only fires for taps while
+	// already running, this hook is the documented way to catch the other case.
+	const lastResponse = Notifications.useLastNotificationResponse()
+	useEffect(() => {
+		if (!lastResponse || loading) return
+		handleNotificationTap(lastResponse.notification.request.content.data ?? {}, user?.role)
+		Notifications.clearLastNotificationResponse()
+	}, [lastResponse, loading, user?.role])
 
 	return null
 }
