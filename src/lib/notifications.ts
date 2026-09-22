@@ -16,7 +16,6 @@ import { registerDevice, unregisterDevice } from '@/lib/auth-api'
  * `npx expo run:ios` / `run:android`. Local notifications (schedule*Async)
  * still work fine in Expo Go.
  */
-
 // Foreground presentation: show banner + play sound even while the app is open.
 Notifications.setNotificationHandler({
 	handleNotification: async () => ({
