@@ -1,39 +1,30 @@
 import '@/global.css';
 import { Platform } from 'react-native';
 
-// Kudaibergen Design System - Based on Design Document
-// Colors from design: #0F1115 (dark bg), #1A1D23 (surface), #FFB020 (accent), #22C55E (success)
+// Same values as the `C` palette in components/ui.tsx — the two systems must
+// not drift, or the tab bar ends up a different shade than the buttons.
+const palette = {
+  background: '#F2F2F2',
+  surface: '#FFFFFF',
+  surfaceAlt: '#F7F7F7',
+  text: '#1A1A1A',
+  textSecondary: '#4A4A4A',
+  textTertiary: '#6B6B6B',
+  border: '#DDDDDD',
+  accent: '#E8590C',
+  accentHover: '#D04E08',
+  success: '#2B8A3E',
+  error: '#C92A2A',
+  warning: '#E8A400',
+  disabled: '#9E9E9E',
+} as const;
+
+// The app ships light-only: a single look is cheaper to design and test, and
+// most screens hardcode the light palette anyway. `dark` is an alias so any
+// `isDark ? Colors.dark : Colors.light` call site stays consistent.
 export const Colors = {
-  light: {
-    background: '#F4F6F8',
-    surface: '#FFFFFF',
-    surfaceAlt: '#F0F2F5',
-    text: '#0F1115',
-    textSecondary: '#5A616B',
-    textTertiary: '#7A828C',
-    border: '#D3D9E0',
-    accent: '#FFB020',
-    accentHover: '#FFC757',
-    success: '#22C55E',
-    error: '#EF4444',
-    warning: '#3B82F6',
-    disabled: '#4B5158',
-  },
-  dark: {
-    background: '#0F1115',
-    surface: '#1A1D23',
-    surfaceAlt: '#141821',
-    text: '#F5F7FA',
-    textSecondary: '#8A929E',
-    textTertiary: '#C7CDD6',
-    border: '#2E333D',
-    accent: '#FFB020',
-    accentHover: '#FFC757',
-    success: '#22C55E',
-    error: '#EF4444',
-    warning: '#3B82F6',
-    disabled: '#4B5158',
-  },
+  light: palette,
+  dark: palette,
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light;

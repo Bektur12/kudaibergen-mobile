@@ -9,54 +9,36 @@ import {
   TextStyle,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Design system colors (per design review)
+// Neutral base + one accent. Colour carries meaning, never decoration:
+// orange = the action you should take, red = urgent, green = in stock.
 export const C = {
-  primary: '#FF6B35',      // PRIMARY CTA: buttons, prices, main actions
-  secondary: '#F7931E',    // ACCENT: ratings, icons (not for CTAs)
-  error: '#EF5350',        // SECONDARY: urgent, errors, warnings
-  success: '#4CAF50',      // SUCCESS: in stock, active status
-  verified: '#2F6FED',     // NEW: verified seller badge
-  textPrimary: '#1A1A1A',
-  textSecondary: '#666666',
-  textTertiary: '#999999',
-  bg: '#F5F5F5',
+  primary: '#E8590C',      // Actions only (buttons, links). Darkened for 4.5:1 contrast on white
+  error: '#C92A2A',        // Urgent only
+  success: '#2B8A3E',      // In stock only
+  textPrimary: '#1A1A1A',  // 15.3:1 on white
+  textSecondary: '#4A4A4A',// 8.9:1 — readable at arm's length
+  textTertiary: '#6B6B6B', // 5.3:1 — passes AA, unlike the old #999
+  bg: '#F2F2F2',
   surface: '#FFFFFF',
-  surfaceAlt: '#F9F9F9',
-  border: '#E0E0E0',
-  primaryTint: '#FFEDE3',  // NEW: light orange background for promo
-  errorTint: '#FDEBEA',    // NEW: light red background
-  successTint: '#E7F6ED',  // NEW: light green background
+  surfaceAlt: '#F7F7F7',
+  border: '#DDDDDD',
+  primaryTint: '#FFF1E8',
+  errorTint: '#FDECEC',
+  successTint: '#EBF7EE',
 };
 
-// Dark theme colors
-export const CDark = {
-  primary: '#FF6B35',      // PRIMARY stays same
-  secondary: '#F7931E',
-  error: '#EF5350',
-  success: '#2F9E58',
-  verified: '#2F6FED',
-  textPrimary: '#F6F3EC',
-  textSecondary: '#B6AE9E',
-  textTertiary: '#857D6C',
-  bg: '#14120E',           // Warm dark (garage at night)
-  surface: '#1E1B16',
-  surfaceAlt: '#262218',
-  border: '#332E24',
-  primaryTint: '#4D3A2A',  // Darker orange tint
-  errorTint: '#4D2A28',
-  successTint: '#2A3D2E',
-};
-
-// Typography helpers (per design system - 3 sizes max on screen)
+// Sized for drivers aged 35-60 reading a phone at arm's length,
+// often in a workshop. Nothing below 13px.
 export const T = {
-  price: { fontSize: 24, fontWeight: '800', lineHeight: 32 } as TextStyle,     // BIG price
-  heading: { fontSize: 17, fontWeight: '700', lineHeight: 24 } as TextStyle,   // Section titles
+  price: { fontSize: 26, fontWeight: '800', lineHeight: 34 } as TextStyle,
+  heading: { fontSize: 18, fontWeight: '700', lineHeight: 26 } as TextStyle,
   button: { fontSize: 17, fontWeight: '700', lineHeight: 24 } as TextStyle,
-  body: { fontSize: 15, fontWeight: '400', lineHeight: 24 } as TextStyle,      // Main text
-  secondary: { fontSize: 13, fontWeight: '400', lineHeight: 20 } as TextStyle, // Characteristics
-  label: { fontSize: 12, fontWeight: '700', lineHeight: 16 } as TextStyle,
-  hint: { fontSize: 11, fontWeight: '400', lineHeight: 16 } as TextStyle,      // Meta info
+  body: { fontSize: 16, fontWeight: '400', lineHeight: 24 } as TextStyle,
+  secondary: { fontSize: 15, fontWeight: '400', lineHeight: 22 } as TextStyle,
+  label: { fontSize: 13, fontWeight: '600', lineHeight: 18 } as TextStyle,
+  hint: { fontSize: 13, fontWeight: '400', lineHeight: 18 } as TextStyle,
 };
 
 const styles = StyleSheet.create({
@@ -302,13 +284,15 @@ export function ScreenHeader({
   leftSlot?: React.ReactNode;
   style?: ViewStyle;
 }) {
+  const insets = useSafeAreaInsets();
   return (
     <View
       style={[
         {
           backgroundColor: C.surface,
           paddingHorizontal: 20,
-          paddingVertical: 12,
+          paddingTop: insets.top + 12,
+          paddingBottom: 12,
           flexDirection: 'row',
           alignItems: 'center',
           gap: 12,

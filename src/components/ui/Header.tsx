@@ -7,6 +7,7 @@ import {
 	TouchableOpacity,
 	ViewStyle,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Colors, Spacing, Typography } from '@/constants/theme'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -32,6 +33,7 @@ export function Header({
 	const colorScheme = useColorScheme() ?? 'dark'
 	const isDark = colorScheme === 'dark'
 	const colors = isDark ? Colors.dark : Colors.light
+	const insets = useSafeAreaInsets()
 
 	return (
 		<View
@@ -40,6 +42,7 @@ export function Header({
 				{
 					backgroundColor: colors.surface,
 					borderBottomColor: colors.border,
+					paddingTop: insets.top + Spacing.three,
 				},
 				style,
 			]}
