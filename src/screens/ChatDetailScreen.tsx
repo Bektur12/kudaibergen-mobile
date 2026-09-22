@@ -473,6 +473,21 @@ export default function ChatDetailScreen({
     }
   };
 
+  // RN's `{ uri, name, type }` object is what FormData.append expects on
+  // iOS/Android — but a real browser (web build) just stringifies a plain
+  // object into a text field instead of attaching a file, so Spring never
+  // sees a `file` part at all (MissingServletRequestPartException → the
+  // backend's 500-instead-of-400 bug this was chasing). On web we have to
+  // actually fetch the local blob/data URI and hand FormData a real File.
+  const toFilePart = async (uri: string, name: string, type: string): Promise<Blob> => {
+    if (Platform.OS === 'web') {
+      const res = await fetch(uri);
+      const blob = await res.blob();
+      return new File([blob], name, { type });
+    }
+    return { uri, name, type } as unknown as Blob;
+  };
+
   const attachPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -489,11 +504,10 @@ export default function ChatDetailScreen({
     setSending(true);
     try {
       const form = new FormData();
-      form.append('file', {
-        uri: asset.uri,
-        name: asset.fileName ?? 'photo.jpg',
-        type: asset.mimeType ?? 'image/jpeg',
-      } as unknown as Blob);
+      form.append(
+        'file',
+        await toFilePart(asset.uri, asset.fileName ?? 'photo.jpg', asset.mimeType ?? 'image/jpeg')
+      );
       form.append('type', 'PHOTO');
       const message = await sendMediaMessage(chatId, form);
       addMessage(message);
@@ -546,11 +560,7 @@ export default function ChatDetailScreen({
     setSending(true);
     try {
       const form = new FormData();
-      form.append('file', {
-        uri,
-        name: 'voice.m4a',
-        type: 'audio/m4a',
-      } as unknown as Blob);
+      form.append('file', await toFilePart(uri, 'voice.m4a', 'audio/m4a'));
       form.append('type', 'VOICE');
       form.append('durationSeconds', String(durationSeconds));
       const message = await sendMediaMessage(chatId, form);
