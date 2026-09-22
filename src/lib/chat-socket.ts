@@ -58,7 +58,16 @@ function ensureClient(): Client {
 		brokerURL: resolveWsUrl(),
 		connectHeaders: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
 		reconnectDelay: 3000,
+		// Silent by default — without these, a connection that never succeeds
+		// (wrong URL, CORS, expired token, network unreachable) just retries
+		// forever with zero visible signal. This is the fastest way to see
+		// *why* messages/typing/presence only ever show up after a REST
+		// refetch (leaving and reopening the chat) instead of live.
+		debug: (msg) => {
+			if (__DEV__) console.log('[stomp]', msg)
+		},
 		onConnect: () => {
+			if (__DEV__) console.log('[stomp] connected:', resolveWsUrl())
 			// STOMP subscriptions don't survive a reconnect — reapply every topic
 			// we still have listeners for, across all three families.
 			for (const family of families) {
@@ -66,6 +75,18 @@ function ensureClient(): Client {
 					subscribeOnBroker(family, chatId)
 				}
 			}
+		},
+		onDisconnect: () => {
+			if (__DEV__) console.log('[stomp] disconnected')
+		},
+		onStompError: (frame) => {
+			if (__DEV__) console.log('[stomp] broker error:', frame.headers['message'], frame.body)
+		},
+		onWebSocketError: (event) => {
+			if (__DEV__) console.log('[stomp] websocket error:', resolveWsUrl(), event)
+		},
+		onWebSocketClose: (event) => {
+			if (__DEV__) console.log('[stomp] websocket closed:', event.code, event.reason)
 		},
 	})
 	return client
