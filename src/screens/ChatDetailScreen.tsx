@@ -513,7 +513,13 @@ export default function ChatDetailScreen({
         const message = await sendMediaMessage(chatId, form);
         addMessage(message);
       } catch (err) {
-        Alert.alert('Не удалось отправить фото', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+        // Show the real message for *any* error, not just ApiError — a plain
+        // network/runtime failure here was getting hidden behind a generic
+        // "попробуйте ещё раз" with no way to tell what actually went wrong.
+        Alert.alert(
+          'Не удалось отправить фото',
+          err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Попробуйте ещё раз'
+        );
       } finally {
         setSending(false);
       }
