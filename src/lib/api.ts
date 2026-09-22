@@ -146,6 +146,22 @@ async function doRefresh(): Promise<boolean> {
 	}
 }
 
+/**
+ * Forces a token refresh regardless of whether the current one has actually
+ * expired yet. Used by the STOMP client's `beforeConnect` hook before every
+ * CONNECT attempt (including automatic reconnects) — a WS reconnect that
+ * reuses a stale access token gets silently rejected by the server and just
+ * retries forever with the same dead token otherwise. Shares the reactive
+ * 401 path's in-flight guard so a REST call and a socket reconnect racing
+ * each other coalesce into a single refresh instead of firing two.
+ */
+export async function ensureFreshAccessToken(): Promise<void> {
+	refreshInFlight = refreshInFlight ?? doRefresh().finally(() => {
+		refreshInFlight = null
+	})
+	await refreshInFlight
+}
+
 interface RequestOptions {
 	method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 	body?: unknown

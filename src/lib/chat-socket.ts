@@ -1,5 +1,5 @@
 import { Client, type StompSubscription } from '@stomp/stompjs'
-import { API_BASE_URL, getAccessToken } from '@/lib/api'
+import { API_BASE_URL, getAccessToken, ensureFreshAccessToken } from '@/lib/api'
 import type { ChatMessage } from '@/lib/chat-api'
 
 /**
@@ -58,6 +58,17 @@ function ensureClient(): Client {
 		brokerURL: resolveWsUrl(),
 		connectHeaders: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
 		reconnectDelay: 3000,
+		// Runs before every CONNECT attempt — including every automatic
+		// reconnect stompjs fires. Without this, a reconnect reuses whatever
+		// connectHeaders was set at client construction time; once the access
+		// token (15 min TTL) expires, every reconnect keeps presenting the
+		// same dead token, the server rejects it, and the socket never
+		// recovers on its own (confirmed server-side: hundreds of CONNECT
+		// attempts, a handful of CONNECTED). Refreshing here breaks that loop.
+		beforeConnect: async () => {
+			await ensureFreshAccessToken()
+			if (client) client.connectHeaders = { Authorization: `Bearer ${getAccessToken() ?? ''}` }
+		},
 		// Silent by default — without these, a connection that never succeeds
 		// (wrong URL, CORS, expired token, network unreachable) just retries
 		// forever with zero visible signal. This is the fastest way to see
