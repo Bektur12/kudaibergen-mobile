@@ -489,32 +489,39 @@ export default function ChatDetailScreen({
   };
 
   const attachPhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Нужен доступ к галерее', 'Разрешите доступ к фото в настройках');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets[0]) return;
-
-    const asset = result.assets[0];
-    setSending(true);
     try {
-      const form = new FormData();
-      form.append(
-        'file',
-        await toFilePart(asset.uri, asset.fileName ?? 'photo.jpg', asset.mimeType ?? 'image/jpeg')
-      );
-      form.append('type', 'PHOTO');
-      const message = await sendMediaMessage(chatId, form);
-      addMessage(message);
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Нужен доступ к галерее', 'Разрешите доступ к фото в настройках');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets[0]) return;
+
+      const asset = result.assets[0];
+      setSending(true);
+      try {
+        const form = new FormData();
+        form.append(
+          'file',
+          await toFilePart(asset.uri, asset.fileName ?? 'photo.jpg', asset.mimeType ?? 'image/jpeg')
+        );
+        form.append('type', 'PHOTO');
+        const message = await sendMediaMessage(chatId, form);
+        addMessage(message);
+      } catch (err) {
+        Alert.alert('Не удалось отправить фото', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+      } finally {
+        setSending(false);
+      }
     } catch (err) {
-      Alert.alert('Не удалось отправить фото', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
-    } finally {
-      setSending(false);
+      // Permission request or the picker itself threw — this was previously
+      // uncaught, so the tap on 📎 just did nothing with zero visible error
+      // and (per the backend log) no request ever left the device.
+      Alert.alert('Не удалось выбрать фото', err instanceof Error ? err.message : 'Попробуйте ещё раз');
     }
   };
 
