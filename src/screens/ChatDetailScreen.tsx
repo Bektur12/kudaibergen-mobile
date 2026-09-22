@@ -473,19 +473,27 @@ export default function ChatDetailScreen({
     }
   };
 
-  // RN's `{ uri, name, type }` object is what FormData.append expects on
-  // iOS/Android — but a real browser (web build) just stringifies a plain
-  // object into a text field instead of attaching a file, so Spring never
-  // sees a `file` part at all (MissingServletRequestPartException → the
-  // backend's 500-instead-of-400 bug this was chasing). On web we have to
-  // actually fetch the local blob/data URI and hand FormData a real File.
+  // Used to be platform-branched: RN's classic `{ uri, name, type }` shape on
+  // native, a fetched File on web (browsers just stringify a plain object
+  // into a text field, dropping the file entirely). But Expo SDK 57 ships
+  // its own global `fetch` (see node_modules/expo/src/winter/fetch/
+  // convertFormData.ts) that replaces RN's — and it explicitly does NOT
+  // support the `{uri}` shorthand ("uri is not supported for React Native's
+  // FormData" per its own comment), throwing "Unsupported FormDataPart
+  // implementation" for anything that isn't a string, a real Blob, or an
+  // object with a `.bytes()` method. So now both platforms take the same
+  // path: fetch the local URI into a real Blob. `File` (which also carries
+  // a filename) exists on web; RN's own Blob polyfill has no File, so we
+  // fall back to a plain re-typed Blob there — the backend assigns its own
+  // random filename regardless (see BACKEND_SPEC.md), only the content-type
+  // actually matters for its BAD_MEDIA_TYPE check.
   const toFilePart = async (uri: string, name: string, type: string): Promise<Blob> => {
-    if (Platform.OS === 'web') {
-      const res = await fetch(uri);
-      const blob = await res.blob();
+    const res = await fetch(uri);
+    const blob = await res.blob();
+    if (typeof File !== 'undefined') {
       return new File([blob], name, { type });
     }
-    return { uri, name, type } as unknown as Blob;
+    return new Blob([blob], { type });
   };
 
   const attachPhoto = async () => {
