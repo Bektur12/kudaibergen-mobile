@@ -1,4 +1,4 @@
-import { Client, type StompSubscription } from '@stomp/stompjs'
+import { Client, ReconnectionTimeMode, type StompSubscription } from '@stomp/stompjs'
 import { API_BASE_URL, getAccessToken, ensureFreshAccessToken } from '@/lib/api'
 import type { ChatMessage } from '@/lib/chat-api'
 
@@ -57,7 +57,12 @@ function ensureClient(): Client {
 	client = new Client({
 		brokerURL: resolveWsUrl(),
 		connectHeaders: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
-		reconnectDelay: 3000,
+		// Exponential backoff instead of a flat retry every 3s — during a real
+		// outage (not just a token refresh) that's needless hammering. Starts
+		// at 2s, doubles each failed attempt, caps at 30s.
+		reconnectDelay: 2000,
+		maxReconnectDelay: 30000,
+		reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
 		// Without heartbeats (stompjs defaults to 0/0, i.e. off), the client has
 		// no way to notice a silently-dead connection — very real on mobile
 		// networks (Wi-Fi↔cellular handoff, carrier NAT timing out an idle
