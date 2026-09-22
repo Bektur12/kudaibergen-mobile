@@ -57,6 +57,18 @@ function ensureClient(): Client {
 	client = new Client({
 		brokerURL: resolveWsUrl(),
 		connectHeaders: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+		// React Native's WebSocket bridge chops the trailing NULL byte off text
+		// frames sent via `.send()` — and every STOMP frame (including CONNECT)
+		// *must* end in NULL per the protocol. Confirmed server-side: bytes
+		// arrive (~295 for our CONNECT), but StompDecoder logs "Incomplete
+		// frame, resetting input buffer" and silently drops it — no error frame
+		// back to the client, just a connection that never reaches CONNECTED.
+		// forceBinaryWSFrames sends frames as ArrayBuffers instead of strings,
+		// sidestepping the RN bridge bug entirely rather than patching the
+		// missing byte after the fact. Only matters on native (the browser's
+		// WebSocket doesn't have this bug), but setting it always is harmless.
+		forceBinaryWSFrames: true,
+		appendMissingNULLonIncoming: true,
 		// Exponential backoff instead of a flat retry every 3s — during a real
 		// outage (not just a token refresh) that's needless hammering. Starts
 		// at 2s, doubles each failed attempt, caps at 30s.
