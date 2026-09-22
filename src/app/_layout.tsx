@@ -1,7 +1,7 @@
 import { router, Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
-import { useColorScheme } from 'react-native'
+import { Platform, useColorScheme } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useEffect } from 'react'
@@ -83,7 +83,11 @@ export default function RootLayout() {
 		<GestureHandlerRootView style={{ flex: 1, backgroundColor: bgColor }}>
 			<SafeAreaProvider>
 				<AuthProvider>
-					<NotificationRouting />
+					{/* expo-notifications has no web implementation for
+					useLastNotificationResponse (or push in general, see
+					notifications.ts) — skip the whole component on web rather
+					than let it throw and take the entire app tree down with it. */}
+					{Platform.OS !== 'web' && <NotificationRouting />}
 					<AppProvider>
 						<Stack screenOptions={{ headerShown: false }} />
 					</AppProvider>
