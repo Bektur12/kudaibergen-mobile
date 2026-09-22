@@ -1,4 +1,5 @@
 import { Client, ReconnectionTimeMode, type StompSubscription } from '@stomp/stompjs'
+import { AppState, type AppStateStatus } from 'react-native'
 import { API_BASE_URL, getAccessToken, ensureFreshAccessToken } from '@/lib/api'
 import type { ChatMessage } from '@/lib/chat-api'
 
@@ -50,6 +51,11 @@ const presence = makeFamily<PresenceEvent>((id) => `/topic/chats/${id}/presence`
 const families = [messages, typing, presence] as unknown as TopicFamily<unknown>[]
 
 let client: Client | null = null
+// True from connectChatSocket() (post-login) until disconnectChatSocket()
+// (logout) — lets the AppState listener below know whether it should be
+// reconnecting on foreground at all (a backgrounded, logged-out app must
+// stay disconnected).
+let wantConnected = false
 
 function ensureClient(): Client {
 	if (client) return client
@@ -128,6 +134,13 @@ function ensureClient(): Client {
 		},
 		onWebSocketClose: (event) => {
 			if (__DEV__) console.log('[stomp] websocket closed:', event.code, event.reason)
+			// Subscription ids from the dropped connection are meaningless on the
+			// next one. Without clearing these, subscribeOnBroker sees a (stale)
+			// entry already present and skips sending a fresh SUBSCRIBE frame on
+			// reconnect, so onConnect's resubscribe loop silently does nothing —
+			// messages/typing/presence go dark until the chat screen is
+			// left and reopened. family.listeners (who *wants* what) is untouched.
+			for (const family of families) family.subs.clear()
 		},
 	})
 	return client
@@ -162,6 +175,7 @@ function subscribeToFamily<T>(family: TopicFamily<T>, chatId: number, handler: (
 
 /** Call once after login (and once after restoring a session) — see AuthProvider. */
 export function connectChatSocket() {
+	wantConnected = true
 	const c = ensureClient()
 	// Token may have changed since the client was first created (fresh login
 	// after a previous logout) — always refresh the CONNECT header before activating.
@@ -171,12 +185,31 @@ export function connectChatSocket() {
 
 /** Call on logout — drops the socket, all topic subscriptions go with it. */
 export function disconnectChatSocket() {
+	wantConnected = false
 	for (const family of families) {
 		family.subs.clear()
 		family.listeners.clear()
 	}
 	client?.deactivate()
 }
+
+// A backgrounded app keeps its JS timers and (for a while) its WebSocket
+// alive — so without this, the chat topic subscription used server-side to
+// decide "is this person looking at the chat right now, skip the push"
+// stays active while the app is in the background/killed-from-view, and the
+// backend correctly-by-the-letter-but-wrong-in-practice never sends a push
+// for a message the user can't actually see. Tearing the socket down on
+// background (and reconnecting — with resubscribe — on foreground) makes
+// that server-side check track what it's actually meant to mean.
+AppState.addEventListener('change', (state: AppStateStatus) => {
+	if (!wantConnected) return
+	if (state === 'active') {
+		const c = ensureClient()
+		if (!c.active) c.activate()
+	} else {
+		client?.deactivate()
+	}
+})
 
 /**
  * Subscribe to live messages for one chat. Safe to call before the socket
