@@ -56,6 +56,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 async function registerPushToken() {
 	const result = await registerForPushNotificationsAsync()
 	if (result.ok) {
+		if (__DEV__) console.log('[push] registered token:', result.token)
 		await syncDeviceToken(result.token)
 		return result.token
 	}
