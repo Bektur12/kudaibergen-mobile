@@ -473,26 +473,24 @@ export default function ChatDetailScreen({
     }
   };
 
-  // Used to be platform-branched: RN's classic `{ uri, name, type }` shape on
-  // native, a fetched File on web (browsers just stringify a plain object
-  // into a text field, dropping the file entirely). But Expo SDK 57 ships
-  // its own global `fetch` (see node_modules/expo/src/winter/fetch/
-  // convertFormData.ts) that replaces RN's — and it explicitly does NOT
-  // support the `{uri}` shorthand ("uri is not supported for React Native's
-  // FormData" per its own comment), throwing "Unsupported FormDataPart
-  // implementation" for anything that isn't a string, a real Blob, or an
-  // object with a `.bytes()` method. So now both platforms take the same
-  // path: fetch the local URI into a real Blob. `File` (which also carries
-  // a filename) exists on web; RN's own Blob polyfill has no File, so we
-  // fall back to a plain re-typed Blob there — the backend assigns its own
-  // random filename regardless (see BACKEND_SPEC.md), only the content-type
-  // actually matters for its BAD_MEDIA_TYPE check.
-  const toFilePart = async (uri: string, name: string, type: string): Promise<Blob> => {
+  // Fetch the local picker/recorder URI into a real Blob — Expo SDK 57's
+  // global fetch (expo/src/winter/fetch/convertFormData.ts) replaces RN's
+  // and rejects the classic `{uri, name, type}` shorthand outright
+  // ("Unsupported FormDataPart implementation").
+  //
+  // Deliberately NOT wrapping this in a `File`: RN's own `File` class
+  // (Libraries/Blob/File.js) defines `.name` as a getter-only property on
+  // its prototype. Expo's own `FormData.append` patch (winter/FormData.ts,
+  // `normalizeArgs`) tries to tag a filename onto whatever you pass by doing
+  // `value.name = ...` directly — which throws "Cannot assign to property
+  // 'name' which has only a getter" against an RN File, but works fine
+  // against a plain Blob (no such getter exists there). The filename goes
+  // through `.append()`'s own third argument instead — the standard
+  // `append(name, blob, filename)` form both Expo's patch and the web spec
+  // already support, so this needs no platform branch at all.
+  const toFilePart = async (uri: string, type: string): Promise<Blob> => {
     const res = await fetch(uri);
     const blob = await res.blob();
-    if (typeof File !== 'undefined') {
-      return new File([blob], name, { type });
-    }
     return new Blob([blob], { type });
   };
 
@@ -515,7 +513,8 @@ export default function ChatDetailScreen({
         const form = new FormData();
         form.append(
           'file',
-          await toFilePart(asset.uri, asset.fileName ?? 'photo.jpg', asset.mimeType ?? 'image/jpeg')
+          await toFilePart(asset.uri, asset.mimeType ?? 'image/jpeg'),
+          asset.fileName ?? 'photo.jpg'
         );
         form.append('type', 'PHOTO');
         const message = await sendMediaMessage(chatId, form);
@@ -581,7 +580,7 @@ export default function ChatDetailScreen({
     setSending(true);
     try {
       const form = new FormData();
-      form.append('file', await toFilePart(uri, 'voice.m4a', 'audio/m4a'));
+      form.append('file', await toFilePart(uri, 'audio/m4a'), 'voice.m4a');
       form.append('type', 'VOICE');
       form.append('durationSeconds', String(durationSeconds));
       const message = await sendMediaMessage(chatId, form);
