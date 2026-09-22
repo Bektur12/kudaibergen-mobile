@@ -85,6 +85,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				if (!cancelled) {
 					setUser(userFromMe(me))
 					connectChatSocket()
+					// Re-sync the push token on every app boot, not just fresh
+					// login/registration — otherwise reopening an already-signed-in
+					// session (the common case) never registers a device token with
+					// the backend at all, and pushes silently never arrive.
+					pushTokenRef.current = await registerPushToken()
 				}
 			} catch {
 				await tokenStore.clear()
