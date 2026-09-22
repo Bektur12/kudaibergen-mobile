@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -482,59 +484,63 @@ export default function SellerProfileScreen() {
 
       {/* Edit store modal */}
       <Modal visible={storeModalVisible} transparent animationType="slide" onRequestClose={() => setStoreModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setStoreModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Название и описание</Text>
-            <Input placeholder="Название магазина" value={name} onChangeText={setName} />
-            <Input placeholder="Описание" value={description} onChangeText={setDescription} multiline numberOfLines={3} />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: C.bg }]}
-                onPress={() => setStoreModalVisible(false)}
-              >
-                <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: C.primary }]}
-                onPress={saveStore}
-                disabled={savingStore}
-              >
-                <Text style={[styles.modalButtonText, { color: '#fff' }]}>
-                  {savingStore ? 'Сохранение...' : 'Сохранить'}
-                </Text>
-              </TouchableOpacity>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setStoreModalVisible(false)}>
+            <View style={styles.modalSheet}>
+              <Text style={styles.modalTitle}>Название и описание</Text>
+              <Input placeholder="Название магазина" value={name} onChangeText={setName} />
+              <Input placeholder="Описание" value={description} onChangeText={setDescription} multiline numberOfLines={3} />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.bg }]}
+                  onPress={() => setStoreModalVisible(false)}
+                >
+                  <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.primary }]}
+                  onPress={saveStore}
+                  disabled={savingStore}
+                >
+                  <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                    {savingStore ? 'Сохранение...' : 'Сохранить'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Add/edit branch modal */}
       <Modal visible={branchModalVisible} transparent animationType="slide" onRequestClose={() => setBranchModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBranchModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{editingBranchId ? 'Изменить филиал' : 'Новый филиал'}</Text>
-            <Input placeholder="Город" value={branchCity} onChangeText={setBranchCity} />
-            <Input placeholder="Адрес" value={branchAddress} onChangeText={setBranchAddress} />
-            <Input placeholder="Телефон" value={branchPhone} onChangeText={setBranchPhone} keyboardType="phone-pad" />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: C.bg }]}
-                onPress={() => setBranchModalVisible(false)}
-              >
-                <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: C.primary }]}
-                onPress={saveBranch}
-                disabled={savingBranch}
-              >
-                <Text style={[styles.modalButtonText, { color: '#fff' }]}>
-                  {savingBranch ? 'Сохранение...' : 'Сохранить'}
-                </Text>
-              </TouchableOpacity>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBranchModalVisible(false)}>
+            <View style={styles.modalSheet}>
+              <Text style={styles.modalTitle}>{editingBranchId ? 'Изменить филиал' : 'Новый филиал'}</Text>
+              <Input placeholder="Город" value={branchCity} onChangeText={setBranchCity} />
+              <Input placeholder="Адрес" value={branchAddress} onChangeText={setBranchAddress} />
+              <Input placeholder="Телефон" value={branchPhone} onChangeText={setBranchPhone} keyboardType="phone-pad" />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.bg }]}
+                  onPress={() => setBranchModalVisible(false)}
+                >
+                  <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.primary }]}
+                  onPress={saveBranch}
+                  disabled={savingBranch}
+                >
+                  <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                    {savingBranch ? 'Сохранение...' : 'Сохранить'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

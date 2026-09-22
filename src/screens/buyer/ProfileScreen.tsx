@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -406,59 +408,63 @@ export default function ProfileScreen() {
 
       {/* Edit name/city modal */}
       <Modal visible={profileModalVisible} transparent animationType="slide" onRequestClose={() => setProfileModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setProfileModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Имя и город</Text>
-            <Input placeholder="Имя" value={name} onChangeText={setName} />
-            <Input placeholder="Город" value={city} onChangeText={setCity} />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: C.bg }]}
-                onPress={() => setProfileModalVisible(false)}
-              >
-                <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: C.primary }]}
-                onPress={saveProfile}
-                disabled={savingProfile}
-              >
-                <Text style={[styles.modalButtonText, { color: '#fff' }]}>
-                  {savingProfile ? 'Сохранение...' : 'Сохранить'}
-                </Text>
-              </TouchableOpacity>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setProfileModalVisible(false)}>
+            <View style={styles.modalSheet}>
+              <Text style={styles.modalTitle}>Имя и город</Text>
+              <Input placeholder="Имя" value={name} onChangeText={setName} />
+              <Input placeholder="Город" value={city} onChangeText={setCity} />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.bg }]}
+                  onPress={() => setProfileModalVisible(false)}
+                >
+                  <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.primary }]}
+                  onPress={saveProfile}
+                  disabled={savingProfile}
+                >
+                  <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                    {savingProfile ? 'Сохранение...' : 'Сохранить'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Add/edit vehicle modal */}
       <Modal visible={vehicleModalVisible} transparent animationType="slide" onRequestClose={() => setVehicleModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setVehicleModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{editingVehicleId ? 'Изменить авто' : 'Новый автомобиль'}</Text>
-            <Input placeholder="Марка (Toyota)" value={brand} onChangeText={setBrand} />
-            <Input placeholder="Модель (Camry)" value={model} onChangeText={setModel} />
-            <Input placeholder="Год" value={year} onChangeText={setYear} keyboardType="number-pad" />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: C.bg }]}
-                onPress={() => setVehicleModalVisible(false)}
-              >
-                <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: C.primary }]}
-                onPress={saveVehicle}
-                disabled={savingVehicle}
-              >
-                <Text style={[styles.modalButtonText, { color: '#fff' }]}>
-                  {savingVehicle ? 'Сохранение...' : 'Сохранить'}
-                </Text>
-              </TouchableOpacity>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setVehicleModalVisible(false)}>
+            <View style={styles.modalSheet}>
+              <Text style={styles.modalTitle}>{editingVehicleId ? 'Изменить авто' : 'Новый автомобиль'}</Text>
+              <Input placeholder="Марка (Toyota)" value={brand} onChangeText={setBrand} />
+              <Input placeholder="Модель (Camry)" value={model} onChangeText={setModel} />
+              <Input placeholder="Год" value={year} onChangeText={setYear} keyboardType="number-pad" />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.bg }]}
+                  onPress={() => setVehicleModalVisible(false)}
+                >
+                  <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.primary }]}
+                  onPress={saveVehicle}
+                  disabled={savingVehicle}
+                >
+                  <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                    {savingVehicle ? 'Сохранение...' : 'Сохранить'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

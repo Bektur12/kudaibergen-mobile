@@ -8,6 +8,8 @@ import {
 	ActivityIndicator,
 	Alert,
 	Modal,
+	KeyboardAvoidingView,
+	Platform,
 	useColorScheme,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -371,37 +373,42 @@ export default function StoreDetailScreen() {
 				animationType="slide"
 				onRequestClose={() => setReviewModalVisible(false)}
 			>
-				<TouchableOpacity
-					style={styles.modalOverlay}
-					activeOpacity={1}
-					onPress={() => setReviewModalVisible(false)}
+				<KeyboardAvoidingView
+					style={{ flex: 1 }}
+					behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
 				>
-					<View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
-						<Text style={[styles.modalTitle, { color: colors.text }]}>Оставить отзыв</Text>
-						<StarRating rating={reviewRating} onRatingChange={setReviewRating} readonly={false} size="large" />
-						<Input
-							placeholder="Комментарий (необязательно)"
-							value={reviewText}
-							onChangeText={setReviewText}
-							multiline
-							numberOfLines={3}
-						/>
-						<View style={styles.modalActions}>
-							<Button
-								title="Отмена"
-								variant="ghost"
-								onPress={() => setReviewModalVisible(false)}
-								style={styles.modalButton}
+					<TouchableOpacity
+						style={styles.modalOverlay}
+						activeOpacity={1}
+						onPress={() => setReviewModalVisible(false)}
+					>
+						<View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+							<Text style={[styles.modalTitle, { color: colors.text }]}>Оставить отзыв</Text>
+							<StarRating rating={reviewRating} onRatingChange={setReviewRating} readonly={false} size="large" />
+							<Input
+								placeholder="Комментарий (необязательно)"
+								value={reviewText}
+								onChangeText={setReviewText}
+								multiline
+								numberOfLines={3}
 							/>
-							<Button
-								title={submittingReview ? 'Отправка...' : 'Отправить'}
-								onPress={handleSubmitReview}
-								disabled={submittingReview}
-								style={styles.modalButton}
-							/>
+							<View style={styles.modalActions}>
+								<Button
+									title="Отмена"
+									variant="ghost"
+									onPress={() => setReviewModalVisible(false)}
+									style={styles.modalButton}
+								/>
+								<Button
+									title={submittingReview ? 'Отправка...' : 'Отправить'}
+									onPress={handleSubmitReview}
+									disabled={submittingReview}
+									style={styles.modalButton}
+								/>
+							</View>
 						</View>
-					</View>
-				</TouchableOpacity>
+					</TouchableOpacity>
+				</KeyboardAvoidingView>
 			</Modal>
 		</View>
 	)
