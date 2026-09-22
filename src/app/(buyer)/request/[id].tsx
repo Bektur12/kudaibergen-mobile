@@ -1,51 +1,227 @@
-import React from 'react'
-import { View, Text, StyleSheet, ScrollView } from 'react-native'
-import { useColorScheme } from 'react-native'
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Colors, Spacing, Typography } from '@/constants/theme'
-import { Header } from '@/components/ui/Header'
-import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Header } from '@/components/ui/Header'
+import { Colors, Spacing, Typography } from '@/constants/theme'
+import { getPartCategoryInfo } from '@/data/parts'
+import { ApiError } from '@/lib/api'
+import {
+	acceptOffer,
+	cancelRequest,
+	extendRequest,
+	getRequest,
+	type OfferSummary,
+	type RequestDetails,
+} from '@/lib/request-api'
+import { toProductCategory } from '@/lib/store-api'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useEffect, useState } from 'react'
+import {
+	ActivityIndicator,
+	Alert,
+	ScrollView,
+	StyleSheet,
+	Text,
+	useColorScheme,
+	View,
+} from 'react-native'
+
+const STATUS_LABELS: Record<string, string> = {
+	ACTIVE: 'Активен',
+	COMPLETED: 'Завершён',
+	EXPIRED: 'Истёк',
+	CANCELLED: 'Отменён',
+}
+
+function formatMoney(amount: number, currency: string) {
+	return `${amount.toLocaleString('ru-RU')} ${currency}`
+}
 
 export default function RequestDetailScreen() {
-	const { id } = useLocalSearchParams()
+	const { id } = useLocalSearchParams<{ id: string }>()
 	const colorScheme = useColorScheme() ?? 'dark'
 	const isDark = colorScheme === 'dark'
 	const colors = isDark ? Colors.dark : Colors.light
 	const router = useRouter()
 
+	const [request, setRequest] = useState<RequestDetails | null>(null)
+	const [loading, setLoading] = useState(true)
+	const [busyOfferId, setBusyOfferId] = useState<number | null>(null)
+	const [busyAction, setBusyAction] = useState(false)
+
+	useEffect(() => {
+		let cancelled = false
+		async function load() {
+			try {
+				const data = await getRequest(Number(id))
+				if (!cancelled) setRequest(data)
+			} catch {
+				if (!cancelled) setRequest(null)
+			} finally {
+				if (!cancelled) setLoading(false)
+			}
+		}
+		load()
+		return () => {
+			cancelled = true
+		}
+	}, [id])
+
+	const handleAccept = async (offer: OfferSummary) => {
+		if (busyOfferId) return
+		setBusyOfferId(offer.id)
+		try {
+			const result = await acceptOffer(offer.id)
+			router.replace({
+				pathname: '/(buyer)/chat/[id]',
+				params: { id: result.chatId.toString(), name: offer.storeName },
+			})
+		} catch (err) {
+			Alert.alert('Не удалось принять', err instanceof ApiError ? err.message : 'Попробуйте ещё раз')
+		} finally {
+			setBusyOfferId(null)
+		}
+	}
+
+	const handleExtend = async () => {
+		setBusyAction(true)
+		try {
+			setRequest(await extendRequest(Number(id)))
+		} catch (err) {
+			Alert.alert('Не удалось продлить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз')
+		} finally {
+			setBusyAction(false)
+		}
+	}
+
+	const handleCancel = async () => {
+		setBusyAction(true)
+		try {
+			setRequest(await cancelRequest(Number(id)))
+		} catch (err) {
+			Alert.alert('Не удалось отменить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз')
+		} finally {
+			setBusyAction(false)
+		}
+	}
+
+	if (loading) {
+		return (
+			<View style={[styles.container, styles.centerFill, { backgroundColor: colors.background }]}>
+				<ActivityIndicator color={colors.accent} />
+			</View>
+		)
+	}
+
+	if (!request) {
+		return (
+			<View style={[styles.container, { backgroundColor: colors.background }]}>
+				<Header title="Детали запроса" onBack={() => router.back()} />
+				<View style={styles.centerFill}>
+					<Text style={{ color: colors.textSecondary }}>Запрос не найден</Text>
+				</View>
+			</View>
+		)
+	}
+
+	const categoryInfo = getPartCategoryInfo(toProductCategory(request.category))
+	const isActive = request.status === 'ACTIVE'
+
 	return (
 		<View style={[styles.container, { backgroundColor: colors.background }]}>
-			<Header
-				title="Детали запроса"
-				onBack={() => router.back()}
-			/>
+			<Header title="Детали запроса" onBack={() => router.back()} />
 
 			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
 				<Card variant="outlined" style={styles.card}>
-					<Text style={[styles.carModel, { color: colors.text }]}>
-						BMW X5
-					</Text>
-					<Text style={[styles.carYear, { color: colors.textSecondary }]}>
-						2020 · 3.0L Twin-Turbo
-					</Text>
+					<View style={styles.titleRow}>
+						<Text style={[styles.carModel, { color: colors.text }]}>
+							{categoryInfo?.label ?? request.category}
+						</Text>
+						{request.isUrgent && <Badge label="Срочно" variant="error" size="small" />}
+					</View>
+					{request.car && (
+						<Text style={[styles.carYear, { color: colors.textSecondary }]}>{request.car}</Text>
+					)}
 
 					<View style={styles.divider} />
 
-					<Text style={[styles.label, { color: colors.textSecondary }]}>
-						Описание
-					</Text>
-					<Text style={[styles.description, { color: colors.text }]}>
-						Ищу две передние тормозные колодки
-					</Text>
+					<Text style={[styles.label, { color: colors.textSecondary }]}>Описание</Text>
+					<Text style={[styles.description, { color: colors.text }]}>{request.description}</Text>
+
+					{(request.budgetMin || request.budgetMax) && (
+						<>
+							<View style={styles.divider} />
+							<Text style={[styles.label, { color: colors.textSecondary }]}>Бюджет</Text>
+							<Text style={[styles.description, { color: colors.text }]}>
+								{request.budgetMin && request.budgetMax
+									? `${formatMoney(request.budgetMin, request.currency ?? '')} – ${formatMoney(request.budgetMax, request.currency ?? '')}`
+									: formatMoney((request.budgetMax ?? request.budgetMin)!, request.currency ?? '')}
+							</Text>
+						</>
+					)}
 
 					<View style={styles.divider} />
 
-					<Text style={[styles.label, { color: colors.textSecondary }]}>
-						Предложения
-					</Text>
-					<Badge label="3 предложения" variant="accent" size="medium" />
+					<View style={styles.statusRow}>
+						<Badge
+							label={STATUS_LABELS[request.status] ?? request.status}
+							variant={isActive ? 'success' : 'gray'}
+							size="medium"
+						/>
+						<Badge label={`${request.offers.length} предложений`} variant="accent" size="medium" />
+					</View>
+
+					{isActive && (
+						<View style={styles.actionsRow}>
+							<Button title="Продлить на 24ч" variant="ghost" size="small" onPress={handleExtend} disabled={busyAction} />
+							<Button title="Отменить" variant="ghost" size="small" onPress={handleCancel} disabled={busyAction} />
+						</View>
+					)}
 				</Card>
+
+				<Text style={[styles.sectionTitle, { color: colors.text }]}>Предложения</Text>
+
+				{request.offers.length === 0 ? (
+					<Text style={{ color: colors.textSecondary }}>Пока никто не ответил</Text>
+				) : (
+					request.offers.map((offer) => (
+						<Card key={offer.id} variant="outlined" style={styles.offerCard}>
+							<View style={styles.titleRow}>
+								<Text style={[styles.offerStore, { color: colors.text }]}>{offer.storeName}</Text>
+								<Text style={[styles.offerRating, { color: colors.textSecondary }]}>
+									★ {offer.storeRating.toFixed(1)}
+								</Text>
+							</View>
+							{offer.price != null && (
+								<Text style={[styles.offerPrice, { color: colors.accent }]}>
+									{formatMoney(offer.price, offer.currency)}
+								</Text>
+							)}
+							{!!offer.comment && (
+								<Text style={[styles.description, { color: colors.textSecondary }]}>{offer.comment}</Text>
+							)}
+							{offer.deliveryDays != null && (
+								<Text style={[styles.offerMeta, { color: colors.textTertiary }]}>
+									Доставка: {offer.deliveryDays} дн.
+								</Text>
+							)}
+							{offer.status === 'ACTIVE' && isActive && (
+								<Button
+									title={busyOfferId === offer.id ? 'Принимаем...' : 'Принять и написать'}
+									onPress={() => handleAccept(offer)}
+									disabled={busyOfferId !== null}
+									size="small"
+									style={styles.acceptBtn}
+								/>
+							)}
+							{offer.status !== 'ACTIVE' && (
+								<Badge label={offer.status} variant="gray" size="small" />
+							)}
+						</Card>
+					))
+				)}
+
+				<View style={{ height: Spacing.six }} />
 			</ScrollView>
 		</View>
 	)
@@ -55,12 +231,22 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 	},
+	centerFill: {
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
 	content: {
 		flex: 1,
 		padding: Spacing.four,
 	},
 	card: {
 		marginBottom: Spacing.four,
+	},
+	titleRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		gap: Spacing.two,
 	},
 	carModel: {
 		fontSize: Typography.heading.fontSize,
@@ -86,5 +272,42 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		lineHeight: 20,
 		marginBottom: Spacing.three,
+	},
+	statusRow: {
+		flexDirection: 'row',
+		gap: Spacing.two,
+	},
+	actionsRow: {
+		flexDirection: 'row',
+		gap: Spacing.two,
+		marginTop: Spacing.three,
+	},
+	sectionTitle: {
+		fontSize: 16,
+		fontWeight: '700',
+		marginBottom: Spacing.three,
+	},
+	offerCard: {
+		marginBottom: Spacing.three,
+	},
+	offerStore: {
+		fontSize: 15,
+		fontWeight: '700',
+	},
+	offerRating: {
+		fontSize: 13,
+	},
+	offerPrice: {
+		fontSize: 20,
+		fontWeight: '800',
+		marginTop: Spacing.one,
+		marginBottom: Spacing.two,
+	},
+	offerMeta: {
+		fontSize: 12,
+		marginBottom: Spacing.two,
+	},
+	acceptBtn: {
+		marginTop: Spacing.two,
 	},
 })

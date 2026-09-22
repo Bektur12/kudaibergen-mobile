@@ -1,43 +1,41 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
-import { C, T, BackBtn, Avatar } from '@/components/ui';
-
-const INITIAL_MESSAGES = [
-  {
-    id: 1,
-    from: 'seller',
-    text: 'Здравствуйте! Товар в наличии, тормозные диски Brembo. Цена — 4 500 сом.',
-    time: '9:30',
-  },
-  {
-    id: 2,
-    from: 'buyer',
-    text: 'Добрый день! Подходит для Toyota Camry 70 2020 года?',
-    time: '9:38',
-  },
-  {
-    id: 3,
-    from: 'seller',
-    text: 'Да, подходит. Могу показать живьём, если хотите.',
-    time: '9:40',
-  },
-  {
-    id: 4,
-    from: 'buyer',
-    text: 'Есть другие варианты? Мне нужны передние и задние.',
-    time: '9:45',
-  },
-];
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  useAudioRecorder,
+  useAudioRecorderState,
+  useAudioPlayer,
+  useAudioPlayerStatus,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from 'expo-audio';
+import { C, BackBtn, Avatar } from '@/components/ui';
+import { useAuth } from '@/context/auth';
+import { ApiError } from '@/lib/api';
+import {
+  getChatMessages,
+  sendTextMessage,
+  sendMediaMessage,
+  markChatRead,
+  resolveMediaUrl,
+  type ChatMessage,
+} from '@/lib/chat-api';
+import { subscribeToChat, subscribeToTyping, subscribeToPresence, sendTyping } from '@/lib/chat-socket';
 
 const styles = StyleSheet.create({
   container: {
@@ -64,94 +62,39 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 12,
-    color: C.success,
-    marginTop: 2,
+    color: C.textTertiary,
+    marginTop: 1,
   },
-  productPreview: {
-    backgroundColor: C.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  productImage: {
-    width: 48,
-    height: 48,
-    backgroundColor: C.bg,
-    borderRadius: 8,
-  },
-  productInfo: {
-    flex: 1,
-  },
-  productTitle: {
-    fontWeight: '600',
-    fontSize: 13,
-    color: C.textPrimary,
-  },
-  productPrice: {
-    fontWeight: '700',
-    fontSize: 15,
-    color: C.primary,
-    marginTop: 2,
-  },
-  warningBox: {
-    backgroundColor: '#FFF3CD',
-    borderLeftWidth: 4,
-    borderLeftColor: C.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 4,
-  },
-  warningText: {
-    fontSize: 12,
-    color: '#856404',
-    lineHeight: 18,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: C.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  actionButton: {
-    flex: 1,
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
+  onlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: C.success,
     borderWidth: 2,
-    borderColor: C.primary,
+    borderColor: C.surface,
   },
-  actionButtonPrimary: {
-    backgroundColor: C.primary,
-    borderColor: C.primary,
-  },
-  actionButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: C.primary,
-  },
-  actionButtonTextPrimary: {
-    color: '#FFFFFF',
+  centerFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   messagesContainer: {
     flex: 1,
   },
+  messagesContent: {
+    paddingVertical: 8,
+  },
   messageBubble: {
-    marginVertical: 6,
+    marginVertical: 4,
     paddingHorizontal: 12,
   },
-  sellerMessage: {
+  otherMessage: {
     alignItems: 'flex-start',
   },
-  buyerMessage: {
+  ownMessage: {
     alignItems: 'flex-end',
   },
   messageBubbleContent: {
@@ -160,10 +103,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
   },
-  sellerBubble: {
+  otherBubble: {
     backgroundColor: C.surface,
   },
-  buyerBubble: {
+  ownBubble: {
     backgroundColor: C.primary,
   },
   messageText: {
@@ -173,6 +116,17 @@ const styles = StyleSheet.create({
   messageTime: {
     fontSize: 11,
     marginTop: 4,
+  },
+  mediaImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  mediaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -193,6 +147,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: C.textPrimary,
   },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   sendButton: {
     backgroundColor: C.primary,
     borderRadius: 8,
@@ -201,26 +161,394 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  recordingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  recordingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: C.error,
+  },
 });
 
-export default function ChatDetailScreen({ onBack }: { onBack?: () => void }) {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
-  const [input, setInput] = useState('');
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
 
-  const send = () => {
-    if (!input.trim()) return;
-    const newMessage = {
-      id: messages.length + 1,
-      from: 'buyer',
-      text: input.trim(),
-      time: new Date().toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }),
+function formatLastSeen(iso: string | null): string {
+  if (!iso) return 'не в сети';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'был(а) только что';
+  if (minutes < 60) return `был(а) ${minutes} мин назад`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `был(а) ${hours} ч назад`;
+  return `был(а) ${new Date(iso).toLocaleDateString('ru-RU')}`;
+}
+
+function formatDuration(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.floor(totalSeconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** In-app play/pause for a voice message — separate component so its
+ * player/hook only exists for the voice bubbles that actually need one. */
+function VoiceBubbleContent({
+  mediaUrl,
+  durationSeconds,
+  isOwn,
+}: {
+  mediaUrl: string | null;
+  durationSeconds: number | null;
+  isOwn: boolean;
+}) {
+  const player = useAudioPlayer(mediaUrl ?? undefined);
+  const status = useAudioPlayerStatus(player);
+  const textColor = isOwn ? '#FFFFFF' : C.textPrimary;
+
+  const toggle = () => {
+    if (!mediaUrl) return;
+    if (status.playing) player.pause();
+    else player.play();
+  };
+
+  const remaining = status.playing || status.currentTime > 0
+    ? Math.max(0, (status.duration || durationSeconds || 0) - status.currentTime)
+    : durationSeconds ?? status.duration ?? 0;
+
+  return (
+    <TouchableOpacity style={styles.mediaRow} onPress={toggle} disabled={!mediaUrl}>
+      <Text style={{ fontSize: 20 }}>{status.playing ? '⏸️' : '🎤'}</Text>
+      <Text style={[styles.messageText, { color: textColor }]}>
+        Голосовое · {formatDuration(remaining)}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function MessageBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
+  const mediaUrl = resolveMediaUrl(message.mediaUrl);
+
+  const content = () => {
+    switch (message.type) {
+      case 'PHOTO':
+        return (
+          <>
+            {mediaUrl && (
+              <TouchableOpacity onPress={() => mediaUrl && Linking.openURL(mediaUrl)}>
+                <Image source={{ uri: mediaUrl }} style={styles.mediaImage} />
+              </TouchableOpacity>
+            )}
+            {!!message.body && (
+              <Text style={[styles.messageText, { color: isOwn ? '#FFFFFF' : C.textPrimary }]}>
+                {message.body}
+              </Text>
+            )}
+          </>
+        );
+      case 'VOICE':
+        return (
+          <VoiceBubbleContent
+            mediaUrl={mediaUrl}
+            durationSeconds={message.durationSeconds}
+            isOwn={isOwn}
+          />
+        );
+      case 'VIDEO':
+        return (
+          <TouchableOpacity
+            style={styles.mediaRow}
+            onPress={() => mediaUrl && Linking.openURL(mediaUrl)}
+          >
+            <Text style={{ fontSize: 20 }}>🎥</Text>
+            <Text style={[styles.messageText, { color: isOwn ? '#FFFFFF' : C.textPrimary }]}>
+              Видео
+              {message.durationSeconds ? ` · ${message.durationSeconds}с` : ''}
+            </Text>
+          </TouchableOpacity>
+        );
+      case 'TEXT':
+      default:
+        return (
+          <Text style={[styles.messageText, { color: isOwn ? '#FFFFFF' : C.textPrimary }]}>
+            {message.body}
+          </Text>
+        );
+    }
+  };
+
+  return (
+    <View style={[styles.messageBubble, isOwn ? styles.ownMessage : styles.otherMessage]}>
+      <View
+        style={[styles.messageBubbleContent, isOwn ? styles.ownBubble : styles.otherBubble]}
+      >
+        {content()}
+        <Text
+          style={[
+            styles.messageTime,
+            { color: isOwn ? 'rgba(255,255,255,0.8)' : C.textTertiary },
+          ]}
+        >
+          {formatTime(message.createdAt)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+export default function ChatDetailScreen({
+  chatId,
+  chatName = 'Чат',
+  initialOnline = false,
+  initialLastSeenAt = null,
+  onBack,
+}: {
+  chatId: number;
+  chatName?: string;
+  initialOnline?: boolean;
+  initialLastSeenAt?: string | null;
+  onBack?: () => void;
+}) {
+  const { user } = useAuth();
+  const myId = user ? Number(user.id) : null;
+  const insets = useSafeAreaInsets();
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const [online, setOnline] = useState(initialOnline);
+  const [lastSeenAt, setLastSeenAt] = useState(initialLastSeenAt);
+  const [otherTyping, setOtherTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
+
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(recorder);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await getChatMessages(chatId, 0);
+        if (cancelled) return;
+        setMessages(res.content);
+        setHasMore(res.page < res.totalPages - 1);
+        setPage(0);
+        markChatRead(chatId).catch(() => {});
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
     };
-    setMessages([...messages, newMessage]);
+  }, [chatId]);
+
+  // Live delivery over the shared STOMP socket (see chat-socket.ts) — REST
+  // above only fetches history; this appends whatever arrives while the
+  // screen is open. Dedupe by id: our own sends already land locally via
+  // `send`/`attachPhoto`, and the broker echoes them back on this topic too.
+  useEffect(() => {
+    const unsubscribe = subscribeToChat(chatId, (message) => {
+      setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [message, ...prev]));
+      if (message.senderId !== myId) {
+        markChatRead(chatId).catch(() => {});
+      }
+    });
+    return unsubscribe;
+  }, [chatId, myId]);
+
+  // Presence: server pushes the other side's online status whenever it
+  // changes (initial value came in via route params from ChatSummary).
+  useEffect(() => {
+    const unsubscribe = subscribeToPresence(chatId, (event) => {
+      if (event.userId === myId) return;
+      setOnline(event.online);
+      if (!event.online) setLastSeenAt(new Date().toISOString());
+    });
+    return unsubscribe;
+  }, [chatId, myId]);
+
+  // Typing: the other side pings typing:true/false. A local timeout self-heals
+  // a missed "stopped typing" event (e.g. their app was killed mid-type).
+  useEffect(() => {
+    const unsubscribe = subscribeToTyping(chatId, (event) => {
+      if (event.userId === myId) return;
+      setOtherTyping(event.typing);
+      if (event.typing) {
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setOtherTyping(false), 5000);
+      }
+    });
+    return () => {
+      unsubscribe();
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, [chatId, myId]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = await getChatMessages(chatId, nextPage);
+      setMessages((prev) => [...prev, ...res.content]);
+      setPage(nextPage);
+      setHasMore(nextPage < res.totalPages - 1);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [chatId, page, hasMore, loadingMore, loading]);
+
+  const stopTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Pings /app/chats/{id}/typing at most once per burst of keystrokes — sends
+  // `true` on the first character after being idle, then `false` once typing
+  // pauses for 2s (or immediately after actually sending the message).
+  const handleInputChange = (text: string) => {
+    setInput(text);
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      sendTyping(chatId, true);
+    }
+    if (stopTypingTimerRef.current) clearTimeout(stopTypingTimerRef.current);
+    stopTypingTimerRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      sendTyping(chatId, false);
+    }, 2000);
+  };
+
+  // If the screen unmounts mid-type (user backs out before the 2s idle
+  // timeout fires), tell the other side we stopped — otherwise they'd see
+  // "печатает..." for up to 5s after we've actually left the chat.
+  useEffect(() => {
+    return () => {
+      if (stopTypingTimerRef.current) clearTimeout(stopTypingTimerRef.current);
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        sendTyping(chatId, false);
+      }
+    };
+  }, [chatId]);
+
+  const send = async () => {
+    const body = input.trim();
+    if (!body || sending) return;
+    setSending(true);
     setInput('');
+    if (stopTypingTimerRef.current) clearTimeout(stopTypingTimerRef.current);
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      sendTyping(chatId, false);
+    }
+    try {
+      const message = await sendTextMessage(chatId, body);
+      setMessages((prev) => [message, ...prev]);
+    } catch (err) {
+      setInput(body);
+      Alert.alert('Не удалось отправить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const attachPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Нужен доступ к галерее', 'Разрешите доступ к фото в настройках');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    setSending(true);
+    try {
+      const form = new FormData();
+      form.append('file', {
+        uri: asset.uri,
+        name: asset.fileName ?? 'photo.jpg',
+        type: asset.mimeType ?? 'image/jpeg',
+      } as unknown as Blob);
+      form.append('type', 'PHOTO');
+      const message = await sendMediaMessage(chatId, form);
+      setMessages((prev) => [message, ...prev]);
+    } catch (err) {
+      Alert.alert('Не удалось отправить фото', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Нужен доступ к микрофону', 'Разрешите доступ к микрофону в настройках');
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      recorder.record();
+    } catch (err) {
+      // Most likely cause here: running in Expo Go, which doesn't ship the
+      // native recording module — needs a dev build (eas build / expo run).
+      Alert.alert(
+        'Не удалось начать запись',
+        err instanceof Error ? err.message : 'Голосовые сообщения требуют dev-сборку, не Expo Go'
+      );
+    }
+  };
+
+  const cancelRecording = async () => {
+    try {
+      if (recorderState.isRecording) await recorder.stop();
+    } catch {
+      // already stopped/never started — nothing to clean up
+    }
+  };
+
+  const sendRecording = async () => {
+    const durationSeconds = Math.round(recorderState.durationMillis / 1000);
+    let uri: string | null = null;
+    try {
+      await recorder.stop();
+      uri = recorder.uri;
+    } catch (err) {
+      Alert.alert('Не удалось остановить запись', err instanceof Error ? err.message : 'Попробуйте ещё раз');
+      return;
+    }
+    if (!uri) return;
+
+    setSending(true);
+    try {
+      const form = new FormData();
+      form.append('file', {
+        uri,
+        name: 'voice.m4a',
+        type: 'audio/m4a',
+      } as unknown as Blob);
+      form.append('type', 'VOICE');
+      form.append('durationSeconds', String(durationSeconds));
+      const message = await sendMediaMessage(chatId, form);
+      setMessages((prev) => [message, ...prev]);
+    } catch (err) {
+      Alert.alert('Не удалось отправить голосовое', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -228,118 +556,79 @@ export default function ChatDetailScreen({ onBack }: { onBack?: () => void }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <BackBtn onBack={onBack} />
-        <View style={{ position: 'relative' }}>
-          <Avatar initials="АД" size={38} color={C.primary} />
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              right: 0,
-              width: 10,
-              height: 10,
-              borderRadius: 5,
-              backgroundColor: C.success,
-              borderWidth: 2,
-              borderColor: '#fff',
-            }}
-          />
+        <View>
+          <Avatar initials={chatName.slice(0, 2).toUpperCase()} size={38} color={C.primary} />
+          {online && <View style={styles.onlineDot} />}
         </View>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>АвтоДетали</Text>
-          <Text style={styles.headerSubtitle}>🟢 В сети</Text>
-        </View>
-        <TouchableOpacity>
-          <Text style={{ fontSize: 22 }}>☎️</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Product Preview */}
-      <View style={styles.productPreview}>
-        <View style={styles.productImage}>
-          <Text style={{ fontSize: 20, textAlign: 'center', paddingTop: 8 }}>🔧</Text>
-        </View>
-        <View style={styles.productInfo}>
-          <Text style={styles.productTitle}>Тормозные диски</Text>
-          <Text style={styles.productPrice}>4 500 сом</Text>
-        </View>
-      </View>
-
-      {/* Warning Box */}
-      <View style={styles.warningBox}>
-        <Text style={styles.warningText}>
-          ⚠️ Не передавайте деньги до встречи. Проверьте товар перед оплатой!
-        </Text>
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>Зарезервировать</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, styles.actionButtonPrimary]}>
-          <Text style={[styles.actionButtonText, styles.actionButtonTextPrimary]}>
-            Встреча
+          <Text style={styles.headerTitle}>{chatName}</Text>
+          <Text style={styles.headerSubtitle}>
+            {otherTyping ? 'печатает...' : online ? 'в сети' : formatLastSeen(lastSeenAt)}
           </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Messages */}
-      <ScrollView style={styles.messagesContainer} showsVerticalScrollIndicator={false}>
-        {messages.map((msg) => (
-          <View
-            key={msg.id}
-            style={[
-              styles.messageBubble,
-              msg.from === 'seller' ? styles.sellerMessage : styles.buyerMessage,
-            ]}
-          >
-            <View
-              style={[
-                styles.messageBubbleContent,
-                msg.from === 'seller' ? styles.sellerBubble : styles.buyerBubble,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.messageText,
-                  { color: msg.from === 'seller' ? C.textPrimary : '#FFFFFF' },
-                ]}
-              >
-                {msg.text}
-              </Text>
-              <Text
-                style={[
-                  styles.messageTime,
-                  { color: msg.from === 'seller' ? C.textTertiary : 'rgba(255,255,255,0.8)' },
-                ]}
-              >
-                {msg.time}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Message Input */}
-      <View style={styles.inputContainer}>
-        <View style={styles.inputField}>
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            placeholder="Введите сообщение..."
-            placeholderTextColor={C.textTertiary}
-            multiline
-            maxLength={500}
-            style={{ color: C.textPrimary, fontSize: 14 }}
-          />
         </View>
-        <TouchableOpacity style={styles.sendButton} onPress={send}>
-          <Text style={{ fontSize: 18 }}>➤</Text>
-        </TouchableOpacity>
       </View>
+
+      {loading ? (
+        <View style={styles.centerFill}>
+          <ActivityIndicator color={C.primary} />
+        </View>
+      ) : (
+        <FlatList
+          style={styles.messagesContainer}
+          contentContainerStyle={styles.messagesContent}
+          data={messages}
+          keyExtractor={(item) => item.id.toString()}
+          inverted
+          renderItem={({ item }) => (
+            <MessageBubble message={item} isOwn={myId !== null && item.senderId === myId} />
+          )}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 12 }} /> : null}
+        />
+      )}
+
+      {recorderState.isRecording ? (
+        <View style={styles.inputContainer}>
+          <TouchableOpacity style={styles.iconButton} onPress={cancelRecording}>
+            <Text style={{ fontSize: 20 }}>✕</Text>
+          </TouchableOpacity>
+          <View style={[styles.inputField, styles.recordingRow]}>
+            <View style={styles.recordingDot} />
+            <Text style={{ color: C.textPrimary, fontSize: 14 }}>
+              Запись... {formatDuration(recorderState.durationMillis / 1000)}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.sendButton} onPress={sendRecording} disabled={sending}>
+            <Text style={{ fontSize: 18 }}>➤</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.inputContainer}>
+          <TouchableOpacity style={styles.iconButton} onPress={attachPhoto} disabled={sending}>
+            <Text style={{ fontSize: 20 }}>📎</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={startRecording} disabled={sending}>
+            <Text style={{ fontSize: 20 }}>🎤</Text>
+          </TouchableOpacity>
+          <View style={styles.inputField}>
+            <TextInput
+              value={input}
+              onChangeText={handleInputChange}
+              placeholder="Введите сообщение..."
+              placeholderTextColor={C.textTertiary}
+              multiline
+              maxLength={2000}
+              style={{ color: C.textPrimary, fontSize: 14 }}
+            />
+          </View>
+          <TouchableOpacity style={styles.sendButton} onPress={send} disabled={sending}>
+            <Text style={{ fontSize: 18 }}>➤</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }

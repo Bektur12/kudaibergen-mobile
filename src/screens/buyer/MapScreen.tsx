@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
-import { C, T, ScreenHeader, Stars } from '@/components/ui';
+import { useRouter } from 'expo-router';
+import { C, ScreenHeader } from '@/components/ui';
+import { listStores, type StoreSummary, type ApiPartCategory } from '@/lib/store-api';
 
-const FILTER_TYPES = ['Все', 'Запчасти', 'Услуги', 'СТО'];
-
-const MOCK_PINS = [
-  { id: 1, type: 'СТО', name: 'AutoPro СТО', x: 55, y: 40, rating: 4.9, icon: '🏥' },
-  { id: 2, type: 'Запчасти', name: 'MegaAvto', x: 30, y: 60, rating: 4.7, icon: '🔧' },
-  { id: 3, type: 'Услуги', name: 'AquaWash', x: 70, y: 70, rating: 4.8, icon: '💨' },
-  { id: 4, type: 'СТО', name: 'TechServis', x: 20, y: 30, rating: 4.5, icon: '🏥' },
-  { id: 5, type: 'Запчасти', name: 'AutoParts KG', x: 80, y: 45, rating: 4.6, icon: '🔧' },
+// The map surface itself is still a placeholder (Yandex Maps integration is
+// tracked separately — no lat/lng rendering here), but the list beneath it
+// is real store data instead of MOCK_PINS.
+const FILTER_TYPES: { id: ApiPartCategory | 'ALL'; label: string }[] = [
+  { id: 'ALL', label: 'Все' },
+  { id: 'BRAKES', label: 'Тормоза' },
+  { id: 'ENGINE', label: 'Двигатель' },
+  { id: 'WHEELS', label: 'Колёса' },
 ];
 
 const styles = StyleSheet.create({
@@ -131,13 +134,32 @@ const styles = StyleSheet.create({
 });
 
 export default function MapScreen() {
-  const [activeFilter, setActiveFilter] = useState('Все');
-  const [selectedPin, setSelectedPin] = useState<number | null>(null);
+  const router = useRouter();
+  const [activeFilter, setActiveFilter] = useState<ApiPartCategory | 'ALL'>('ALL');
+  const [stores, setStores] = useState<StoreSummary[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const visiblePins = MOCK_PINS.filter(
-    (p) => activeFilter === 'Все' || p.type === activeFilter
-  );
-  const selected = MOCK_PINS.find((p) => p.id === selectedPin);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!cancelled) setLoading(true);
+      try {
+        const res = await listStores({
+          city: '',
+          category: activeFilter === 'ALL' ? undefined : activeFilter,
+        });
+        if (!cancelled) setStores(res.content);
+      } catch {
+        if (!cancelled) setStores([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFilter]);
 
   return (
     <View style={styles.container}>
@@ -152,20 +174,20 @@ export default function MapScreen() {
         >
           {FILTER_TYPES.map((filter) => (
             <TouchableOpacity
-              key={filter}
+              key={filter.id}
               style={[
                 styles.filterButton,
-                activeFilter === filter && styles.filterButtonActive,
+                activeFilter === filter.id && styles.filterButtonActive,
               ]}
-              onPress={() => setActiveFilter(filter)}
+              onPress={() => setActiveFilter(filter.id)}
             >
               <Text
                 style={[
                   styles.filterText,
-                  activeFilter === filter && styles.filterTextActive,
+                  activeFilter === filter.id && styles.filterTextActive,
                 ]}
               >
-                {filter}
+                {filter.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -183,32 +205,34 @@ export default function MapScreen() {
         </View>
       </View>
 
-      {/* List of pins */}
+      {/* List of stores */}
       <View style={styles.listContainer}>
         <Text style={styles.listTitle}>
-          Найдено: {visiblePins.length} мест
+          {loading ? 'Загрузка...' : `Найдено: ${stores.length} мест`}
         </Text>
         <ScrollView showsVerticalScrollIndicator={false}>
-          {visiblePins.length === 0 ? (
+          {loading ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator color={C.primary} />
+            </View>
+          ) : stores.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>📍</Text>
-              <Text style={styles.emptyText}>
-                По этому фильтру ничего не найдено
-              </Text>
+              <Text style={styles.emptyText}>По этому фильтру ничего не найдено</Text>
             </View>
           ) : (
-            visiblePins.map((pin) => (
+            stores.map((store) => (
               <TouchableOpacity
-                key={pin.id}
+                key={store.id}
                 style={styles.pinItem}
-                onPress={() => setSelectedPin(pin.id)}
+                onPress={() => router.push(`/(buyer)/store/${store.id}` as never)}
               >
                 <View style={styles.pinHeader}>
-                  <Text style={styles.pinIcon}>{pin.icon}</Text>
-                  <Text style={styles.pinName}>{pin.name}</Text>
-                  <Text style={styles.pinRating}>⭐ {pin.rating}</Text>
+                  <Text style={styles.pinIcon}>🔧</Text>
+                  <Text style={styles.pinName}>{store.name}</Text>
+                  <Text style={styles.pinRating}>⭐ {store.rating.toFixed(1)}</Text>
                 </View>
-                <Text style={styles.pinType}>{pin.type}</Text>
+                <Text style={styles.pinType}>{store.cities.join(', ')}</Text>
               </TouchableOpacity>
             ))
           )}

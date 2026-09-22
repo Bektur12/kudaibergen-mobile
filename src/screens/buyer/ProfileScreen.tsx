@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
+  Modal,
+  Alert,
 } from 'react-native';
-import { C, T, Avatar, Stars, Divider, ListRow, Btn } from '@/components/ui';
-
-const VEHICLES = [
-  { id: 1, brand: 'Toyota', model: 'Camry', year: 2020, isDefault: true },
-  { id: 2, brand: 'BMW', model: '320i', year: 2019, isDefault: false },
-];
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { C, Avatar, Stars, ListRow } from '@/components/ui';
+import { Input } from '@/components/ui/Input';
+import { useAuth } from '@/context/auth';
+import { updateMe } from '@/lib/auth-api';
+import { ApiError } from '@/lib/api';
+import {
+  getMyVehicles,
+  createVehicle,
+  updateVehicle,
+  deleteVehicle,
+  type Vehicle,
+} from '@/lib/vehicle-api';
 
 const MENU_ITEMS = [
   { icon: '📍', label: 'Адреса доставки' },
@@ -24,6 +35,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: C.bg,
+  },
+  centerFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     backgroundColor: C.surface,
@@ -41,22 +57,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
-  avatarContainer: {
-    position: 'relative',
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: C.success,
-    borderRadius: 9,
-    width: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
   userDetails: {
     flex: 1,
   },
@@ -65,32 +65,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: C.textPrimary,
   },
-  userEmail: {
+  userCity: {
     fontSize: 13,
     color: C.textTertiary,
     marginVertical: 2,
   },
-  statsContainer: {
-    backgroundColor: C.surface,
-    marginTop: 8,
-    flexDirection: 'row',
-  },
-  statItem: {
-    flex: 1,
-    paddingVertical: 14,
+  editButton: {
+    backgroundColor: C.bg,
+    borderRadius: 10,
+    width: 36,
+    height: 36,
     alignItems: 'center',
-    borderRightWidth: 1,
-    borderRightColor: C.border,
-  },
-  statValue: {
-    fontWeight: '700',
-    fontSize: 20,
-    color: C.primary, // PRIMARY color for important values
-  },
-  statLabel: {
-    fontSize: 12,
-    color: C.textTertiary,
-    marginTop: 2,
+    justifyContent: 'center',
   },
   vehiclesSection: {
     backgroundColor: C.surface,
@@ -137,7 +123,7 @@ const styles = StyleSheet.create({
   },
   defaultBadgeText: {
     fontSize: 11,
-    color: C.primary, // PRIMARY for badge text
+    color: C.primary,
     fontWeight: '600',
   },
   vehicleActions: {
@@ -153,7 +139,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addVehicleButton: {
-    backgroundColor: C.primary, // PRIMARY for CTA button
+    backgroundColor: C.primary,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -179,101 +165,225 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    paddingBottom: 32,
+    gap: 10,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: C.textPrimary,
+    marginBottom: 4,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  modalButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontWeight: '700',
+    fontSize: 14,
+  },
 });
 
 export default function ProfileScreen() {
-  const [vehicles, setVehicles] = useState(VEHICLES);
+  const insets = useSafeAreaInsets();
+  const { user, logout, refreshUser } = useAuth();
+  const router = useRouter();
 
-  const setDefault = (id: number) => {
-    setVehicles((prev) =>
-      prev.map((v) => ({ ...v, isDefault: v.id === id }))
-    );
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
+
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [name, setName] = useState(user?.name ?? '');
+  const [city, setCity] = useState(user?.city ?? '');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
+  const [editingVehicleId, setEditingVehicleId] = useState<number | null>(null);
+  const [brand, setBrand] = useState('');
+  const [model, setModel] = useState('');
+  const [year, setYear] = useState('');
+  const [savingVehicle, setSavingVehicle] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await getMyVehicles();
+        if (!cancelled) setVehicles(data);
+      } catch {
+        // keep whatever was on screen
+      } finally {
+        if (!cancelled) setLoadingVehicles(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/auth/login');
+  };
+
+  const openProfileModal = () => {
+    setName(user?.name ?? '');
+    setCity(user?.city ?? '');
+    setProfileModalVisible(true);
+  };
+
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await updateMe({ name: name.trim(), city: city.trim() });
+      await refreshUser();
+      setProfileModalVisible(false);
+    } catch (err) {
+      Alert.alert('Не удалось сохранить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const openVehicleModal = (vehicle?: Vehicle) => {
+    setEditingVehicleId(vehicle?.id ?? null);
+    setBrand(vehicle?.brand ?? '');
+    setModel(vehicle?.model ?? '');
+    setYear(vehicle?.year ? String(vehicle.year) : '');
+    setVehicleModalVisible(true);
+  };
+
+  const saveVehicle = async () => {
+    if (!brand.trim() || !model.trim()) {
+      Alert.alert('Заполните марку и модель');
+      return;
+    }
+    setSavingVehicle(true);
+    try {
+      const yearNum = year.trim() ? parseInt(year, 10) : undefined;
+      const saved = editingVehicleId
+        ? await updateVehicle(editingVehicleId, { brand: brand.trim(), model: model.trim(), year: yearNum })
+        : await createVehicle({ brand: brand.trim(), model: model.trim(), year: yearNum });
+      setVehicles((prev) =>
+        editingVehicleId ? prev.map((v) => (v.id === editingVehicleId ? saved : v)) : [...prev, saved]
+      );
+      setVehicleModalVisible(false);
+    } catch (err) {
+      Alert.alert('Не удалось сохранить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+    } finally {
+      setSavingVehicle(false);
+    }
+  };
+
+  const setDefault = async (vehicle: Vehicle) => {
+    try {
+      const saved = await updateVehicle(vehicle.id, { isDefault: true });
+      setVehicles((prev) => prev.map((v) => (v.id === saved.id ? saved : { ...v, isDefault: false })));
+    } catch (err) {
+      Alert.alert('Не удалось изменить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+    }
+  };
+
+  const removeVehicle = (id: number) => {
+    Alert.alert('Удалить автомобиль?', undefined, [
+      { text: 'Отмена', style: 'cancel' },
+      {
+        text: 'Удалить',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteVehicle(id);
+            setVehicles((prev) => prev.filter((v) => v.id !== id));
+          } catch (err) {
+            Alert.alert('Не удалось удалить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+          }
+        },
+      },
+    ]);
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>Профиль</Text>
         <View style={styles.userInfo}>
-          <View style={styles.avatarContainer}>
-            <Avatar initials="ИК" size={60} color={C.primary} />
-            <View style={styles.verifiedBadge}>
-              <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700' }}>✓</Text>
-            </View>
-          </View>
+          <Avatar initials={(user?.name ?? '?').slice(0, 2).toUpperCase()} size={60} color={C.primary} />
           <View style={styles.userDetails}>
-            <Text style={styles.userName}>Иван Кожобеков</Text>
-            <Text style={styles.userEmail}>ivan.k@email.com</Text>
-            <Stars rating={4.7} count={12} />
+            <Text style={styles.userName}>{user?.name ?? user?.phone ?? 'Без имени'}</Text>
+            <Text style={styles.userCity}>{user?.city ?? 'Город не указан'}</Text>
+            <Stars rating={0} count={0} />
           </View>
-          <TouchableOpacity
-            style={{
-              backgroundColor: C.bg,
-              borderRadius: 10,
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+          <TouchableOpacity style={styles.editButton} onPress={openProfileModal}>
             <Text style={{ fontSize: 16 }}>✏️</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>24</Text>
-            <Text style={styles.statLabel}>Покупок</Text>
-          </View>
-          <View style={[styles.statItem, { borderRightWidth: 0 }]}>
-            <Text style={styles.statValue}>8</Text>
-            <Text style={styles.statLabel}>Избранных</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>2</Text>
-            <Text style={styles.statLabel}>Адресов</Text>
-          </View>
-        </View>
-
         {/* Vehicles */}
         <View style={styles.vehiclesSection}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text style={styles.sectionTitle}>Мои автомобили</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => openVehicleModal()}>
               <Text style={{ fontSize: 18 }}>➕</Text>
             </TouchableOpacity>
           </View>
-          {vehicles.map((vehicle) => (
-            <View key={vehicle.id} style={styles.vehicleCard}>
-              <View style={styles.vehicleInfo}>
-                <Text style={styles.vehicleName}>
-                  {vehicle.brand} {vehicle.model}
-                </Text>
-                <Text style={styles.vehicleYear}>{vehicle.year}</Text>
-              </View>
-              {vehicle.isDefault && (
-                <View style={styles.defaultBadge}>
-                  <Text style={styles.defaultBadgeText}>По умолчанию</Text>
+          {loadingVehicles ? (
+            <ActivityIndicator color={C.primary} />
+          ) : vehicles.length === 0 ? (
+            <Text style={{ color: C.textTertiary, fontSize: 13, marginBottom: 8 }}>
+              Автомобили не добавлены
+            </Text>
+          ) : (
+            vehicles.map((vehicle) => (
+              <View key={vehicle.id} style={styles.vehicleCard}>
+                <View style={styles.vehicleInfo}>
+                  <Text style={styles.vehicleName}>
+                    {vehicle.brand} {vehicle.model}
+                  </Text>
+                  {vehicle.year && <Text style={styles.vehicleYear}>{vehicle.year}</Text>}
                 </View>
-              )}
-              <View style={styles.vehicleActions}>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => setDefault(vehicle.id)}
-                >
-                  <Text style={{ fontSize: 14 }}>✏️</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Text style={{ fontSize: 14 }}>🗑️</Text>
-                </TouchableOpacity>
+                {vehicle.isDefault && (
+                  <View style={styles.defaultBadge}>
+                    <Text style={styles.defaultBadgeText}>По умолчанию</Text>
+                  </View>
+                )}
+                <View style={styles.vehicleActions}>
+                  {!vehicle.isDefault && (
+                    <TouchableOpacity style={styles.actionButton} onPress={() => setDefault(vehicle)}>
+                      <Text style={{ fontSize: 14 }}>⭐</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity style={styles.actionButton} onPress={() => openVehicleModal(vehicle)}>
+                    <Text style={{ fontSize: 14 }}>✏️</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionButton} onPress={() => removeVehicle(vehicle.id)}>
+                    <Text style={{ fontSize: 14 }}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))}
-          <TouchableOpacity style={styles.addVehicleButton}>
+            ))
+          )}
+          <TouchableOpacity style={styles.addVehicleButton} onPress={() => openVehicleModal()}>
             <Text style={styles.addVehicleText}>➕ Добавить авто</Text>
           </TouchableOpacity>
         </View>
@@ -289,10 +399,67 @@ export default function ProfileScreen() {
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Выход</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Edit name/city modal */}
+      <Modal visible={profileModalVisible} transparent animationType="slide" onRequestClose={() => setProfileModalVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setProfileModalVisible(false)}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Имя и город</Text>
+            <Input placeholder="Имя" value={name} onChangeText={setName} />
+            <Input placeholder="Город" value={city} onChangeText={setCity} />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: C.bg }]}
+                onPress={() => setProfileModalVisible(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: C.primary }]}
+                onPress={saveProfile}
+                disabled={savingProfile}
+              >
+                <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                  {savingProfile ? 'Сохранение...' : 'Сохранить'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Add/edit vehicle modal */}
+      <Modal visible={vehicleModalVisible} transparent animationType="slide" onRequestClose={() => setVehicleModalVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setVehicleModalVisible(false)}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>{editingVehicleId ? 'Изменить авто' : 'Новый автомобиль'}</Text>
+            <Input placeholder="Марка (Toyota)" value={brand} onChangeText={setBrand} />
+            <Input placeholder="Модель (Camry)" value={model} onChangeText={setModel} />
+            <Input placeholder="Год" value={year} onChangeText={setYear} keyboardType="number-pad" />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: C.bg }]}
+                onPress={() => setVehicleModalVisible(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: C.primary }]}
+                onPress={saveVehicle}
+                disabled={savingVehicle}
+              >
+                <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                  {savingVehicle ? 'Сохранение...' : 'Сохранить'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }

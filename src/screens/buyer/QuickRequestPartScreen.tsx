@@ -1,74 +1,110 @@
-import React, { useState } from 'react'
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  TextInput,
-  useColorScheme,
-} from 'react-native'
+import { Btn, C } from '@/components/ui'
+import { PART_CATEGORIES } from '@/data/parts'
+import { ApiError } from '@/lib/api'
+import { createRequest } from '@/lib/request-api'
+import { listStores, type ApiPartCategory } from '@/lib/store-api'
+import type { ProductCategory } from '@/types'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { C, CDark, Btn } from '@/components/ui'
-import { getSellersForBrand, MOCK_SELLERS } from '@/data/sellers'
+import { useRef, useState } from 'react'
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-const CAR_BRANDS = [
-  'Toyota',
-  'BMW',
-  'Mercedes',
-  'Audi',
-  'Honda',
-  'Mazda',
-  'Nissan',
-  'Volkswagen',
-  'Hyundai',
-  'Kia',
-  'Chevrolet',
-  'Ford',
-]
-
-interface SelectedBrand {
-  name: string
-  sellersCount: number
+interface SelectedPart {
+  id: ProductCategory
+  apiCategory: ApiPartCategory
+  label: string
+  icon: keyof typeof Ionicons.glyphMap
+  sellersCount: number | null // null while the count is loading
 }
 
-export default function QuickRequestAutoScreen() {
-  const colorScheme = useColorScheme()
-  const isDark = colorScheme === 'dark'
-  const colors = isDark ? CDark : C
+export default function QuickRequestPartScreen() {
+  const colors = C
   const router = useRouter()
+  const insets = useSafeAreaInsets()
 
-  const [selectedBrand, setSelectedBrand] = useState<SelectedBrand | null>(null)
+  const [selectedPart, setSelectedPart] = useState<SelectedPart | null>(null)
+  const [carInfo, setCarInfo] = useState('')
   const [description, setDescription] = useState('')
   const [budget, setBudget] = useState('')
   const [isUrgent, setIsUrgent] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  // Stable for the lifetime of this screen — a retried tap on the same
+  // in-flight submission won't create a second request server-side. Generated
+  // lazily on first submit (Date.now/Math.random are impure — can't run at render).
+  const idempotencyKey = useRef<string | null>(null)
 
-  const handleSelectBrand = (brand: string) => {
-    const sellers = getSellersForBrand(brand)
-    setSelectedBrand({
-      name: brand,
-      sellersCount: sellers.length,
+  const handleSelectPart = async (part: (typeof PART_CATEGORIES)[number]) => {
+    const apiCategory = part.id.toUpperCase() as ApiPartCategory
+    setSelectedPart({
+      id: part.id,
+      apiCategory,
+      label: part.label,
+      icon: part.icon,
+      sellersCount: null,
     })
+    try {
+      const res = await listStores({ category: apiCategory })
+      setSelectedPart((prev) =>
+        prev && prev.id === part.id
+          ? { ...prev, sellersCount: res.totalElements }
+          : prev
+      )
+    } catch {
+      setSelectedPart((prev) =>
+        prev && prev.id === part.id ? { ...prev, sellersCount: 0 } : prev
+      )
+    }
   }
 
   const handleSubmit = async () => {
-    if (!selectedBrand || !description.trim()) {
-      alert('Пожалуйста выберите марку и опишите что нужно')
+    if (!selectedPart || !description.trim()) {
+      Alert.alert(
+        'Заполните форму',
+        'Пожалуйста выберите деталь и опишите что нужно'
+      )
       return
+    }
+
+    if (!idempotencyKey.current) {
+      idempotencyKey.current = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     }
 
     setIsLoading(true)
     try {
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      alert(
-        `Запрос отправлен ${selectedBrand.sellersCount} продавцам!\nВы получите предложения в течение часа.`
+      const budgetMax = budget.trim()
+        ? parseInt(budget.replace(/\D/g, ''), 10)
+        : undefined
+      const result = await createRequest(
+        {
+          category: selectedPart.apiCategory,
+          description: description.trim(),
+          carText: carInfo.trim() || undefined,
+          budgetMax:
+            budgetMax && !Number.isNaN(budgetMax) ? budgetMax : undefined,
+          isUrgent,
+        },
+        idempotencyKey.current
       )
-      router.back()
+      router.replace({
+        pathname: '/(buyer)/request/[id]',
+        params: { id: String(result.id) },
+      })
+    } catch (err) {
+      Alert.alert(
+        'Не удалось отправить',
+        err instanceof ApiError ? err.message : 'Попробуйте ещё раз'
+      )
     } finally {
       setIsLoading(false)
     }
@@ -87,6 +123,7 @@ export default function QuickRequestAutoScreen() {
             {
               backgroundColor: colors.surface,
               borderBottomColor: colors.border,
+              paddingTop: insets.top + 12,
             },
           ]}
         >
@@ -94,56 +131,62 @@ export default function QuickRequestAutoScreen() {
             <Ionicons name="close" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-            Найти авто
+            Найти запчасть
           </Text>
           <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Step 1: Select Brand */}
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Step 1: Select Part */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
-              ШАГ 1: ВЫБЕРИТЕ МАРКУ
+              ШАГ 1: КАКАЯ ДЕТАЛЬ НУЖНА?
             </Text>
-            <View style={styles.brandsGrid}>
-              {CAR_BRANDS.map((brand) => (
+            <View style={styles.partsGrid}>
+              {PART_CATEGORIES.map((part) => (
                 <TouchableOpacity
-                  key={brand}
-                  onPress={() => handleSelectBrand(brand)}
+                  key={part.id}
+                  onPress={() => handleSelectPart(part)}
                   style={[
-                    styles.brandButton,
+                    styles.partButton,
                     {
                       backgroundColor:
-                        selectedBrand?.name === brand
+                        selectedPart?.id === part.id
                           ? colors.primary
                           : colors.surfaceAlt,
                       borderColor: colors.border,
                     },
                   ]}
                 >
+                  <Ionicons
+                    name={part.icon}
+                    size={26}
+                    color={
+                      selectedPart?.id === part.id
+                        ? '#fff'
+                        : colors.textSecondary
+                    }
+                  />
                   <Text
                     style={[
-                      styles.brandText,
+                      styles.partText,
                       {
                         color:
-                          selectedBrand?.name === brand
+                          selectedPart?.id === part.id
                             ? '#fff'
                             : colors.textPrimary,
                         fontWeight:
-                          selectedBrand?.name === brand ? '700' : '600',
+                          selectedPart?.id === part.id ? '700' : '600',
                       },
                     ]}
                   >
-                    {brand}
+                    {part.label}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {selectedBrand && (
+            {selectedPart && (
               <View
                 style={[
                   styles.sellerInfoCard,
@@ -165,7 +208,7 @@ export default function QuickRequestAutoScreen() {
                       { color: colors.textPrimary },
                     ]}
                   >
-                    {selectedBrand.name}
+                    {selectedPart.label}
                   </Text>
                   <Text
                     style={[
@@ -173,20 +216,46 @@ export default function QuickRequestAutoScreen() {
                       { color: colors.textSecondary },
                     ]}
                   >
-                    {selectedBrand.sellersCount} продавцов готовы помочь
+                    {selectedPart.sellersCount === null
+                      ? 'Считаем продавцов...'
+                      : selectedPart.sellersCount > 0
+                        ? `${selectedPart.sellersCount} продавцов готовы помочь`
+                        : 'Пока нет продавцов этой категории'}
                   </Text>
                 </View>
               </View>
             )}
           </View>
 
-          {/* Step 2: Description */}
+          {/* Step 2: Car info (optional) */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
-              ШАГ 2: ЧТО ВАМ НУЖНО?
+              ШАГ 2: НА КАКУЮ МАШИНУ? (ОПЦИОНАЛЬНО)
             </Text>
             <TextInput
-              placeholder="Пример: Ищу Camry 2015-2020 в отличном состоянии, не битую"
+              placeholder="Пример: Toyota Camry 2018"
+              placeholderTextColor={colors.textTertiary}
+              value={carInfo}
+              onChangeText={setCarInfo}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  color: colors.textPrimary,
+                  minHeight: 48,
+                },
+              ]}
+            />
+          </View>
+
+          {/* Step 3: Description */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+              ШАГ 3: ОПИШИТЕ ЧТО НУЖНО
+            </Text>
+            <TextInput
+              placeholder="Пример: Передние тормозные колодки, оригинал или хорошая копия"
               placeholderTextColor={colors.textTertiary}
               value={description}
               onChangeText={setDescription}
@@ -203,39 +272,40 @@ export default function QuickRequestAutoScreen() {
             />
           </View>
 
-          {/* Step 3: Budget */}
+          {/* Step 4: Budget */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
-              ШАГ 3: БЮДЖЕТ (ОПЦИОНАЛЬНО)
+              ШАГ 4: БЮДЖЕТ (ОПЦИОНАЛЬНО)
             </Text>
             <TextInput
-              placeholder="Пример: $15000-22000"
+              placeholder="Пример: 3000"
               placeholderTextColor={colors.textTertiary}
               value={budget}
               onChangeText={setBudget}
+              keyboardType="number-pad"
               style={[
                 styles.input,
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
                   color: colors.textPrimary,
+                  minHeight: 48,
                 },
               ]}
             />
           </View>
 
-          {/* Step 4: Urgent */}
+          {/* Step 5: Urgent */}
           <View style={styles.section}>
             <View style={styles.urgentRow}>
               <View>
-                <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+                <Text
+                  style={[styles.sectionTitle, { color: colors.textTertiary }]}
+                >
                   СРОЧНО?
                 </Text>
                 <Text
-                  style={[
-                    styles.sectionDesc,
-                    { color: colors.textSecondary },
-                  ]}
+                  style={[styles.sectionDesc, { color: colors.textSecondary }]}
                 >
                   Продавцы будут отвечать быстрее
                 </Text>
@@ -245,7 +315,9 @@ export default function QuickRequestAutoScreen() {
                 style={[
                   styles.urgentButton,
                   {
-                    backgroundColor: isUrgent ? colors.error : colors.surfaceAlt,
+                    backgroundColor: isUrgent
+                      ? colors.error
+                      : colors.surfaceAlt,
                   },
                 ]}
               >
@@ -259,7 +331,7 @@ export default function QuickRequestAutoScreen() {
           </View>
 
           {/* Summary */}
-          {selectedBrand && (
+          {selectedPart && (
             <View
               style={[
                 styles.summaryCard,
@@ -270,23 +342,40 @@ export default function QuickRequestAutoScreen() {
               ]}
             >
               <Text
-                style={[
-                  styles.summaryTitle,
-                  { color: colors.primary },
-                ]}
+                style={[styles.summaryTitle, { color: colors.textSecondary }]}
               >
-                📊 Краткая информация
+                ПРОВЕРЬТЕ ПЕРЕД ОТПРАВКОЙ
               </Text>
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: colors.textPrimary }]}>
-                  Марка:
+                <Text
+                  style={[styles.summaryLabel, { color: colors.textPrimary }]}
+                >
+                  Деталь:
                 </Text>
-                <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>
-                  {selectedBrand.name}
+                <Text
+                  style={[styles.summaryValue, { color: colors.textPrimary }]}
+                >
+                  {selectedPart.label}
                 </Text>
               </View>
+              {!!carInfo.trim() && (
+                <View style={styles.summaryRow}>
+                  <Text
+                    style={[styles.summaryLabel, { color: colors.textPrimary }]}
+                  >
+                    Машина:
+                  </Text>
+                  <Text
+                    style={[styles.summaryValue, { color: colors.textPrimary }]}
+                  >
+                    {carInfo.trim()}
+                  </Text>
+                </View>
+              )}
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: colors.textPrimary }]}>
+                <Text
+                  style={[styles.summaryLabel, { color: colors.textPrimary }]}
+                >
                   Продавцов получат запрос:
                 </Text>
                 <Text
@@ -295,16 +384,12 @@ export default function QuickRequestAutoScreen() {
                     { color: colors.primary, fontWeight: '700' },
                   ]}
                 >
-                  {selectedBrand.sellersCount}
+                  {selectedPart.sellersCount ?? '...'}
                 </Text>
               </View>
               {isUrgent && (
                 <View style={styles.summaryRow}>
-                  <Ionicons
-                    name="flash"
-                    size={16}
-                    color={colors.error}
-                  />
+                  <Ionicons name="flash" size={16} color={colors.error} />
                   <Text style={[styles.summaryLabel, { color: colors.error }]}>
                     Запрос помечен как СРОЧНЫЙ
                   </Text>
@@ -326,8 +411,8 @@ export default function QuickRequestAutoScreen() {
         >
           <Btn
             onPress={handleSubmit}
-            disabled={!selectedBrand || !description.trim() || isLoading}
-            style={{ opacity: !selectedBrand || !description.trim() ? 0.5 : 1 }}
+            disabled={!selectedPart || !description.trim() || isLoading}
+            style={{ opacity: !selectedPart || !description.trim() ? 0.5 : 1 }}
           >
             {isLoading ? 'Отправляем...' : 'Отправить запрос'}
           </Btn>
@@ -350,7 +435,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
   },
   content: {
@@ -359,62 +444,63 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     textTransform: 'uppercase',
     marginBottom: 12,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   sectionDesc: {
-    fontSize: 13,
+    fontSize: 15,
     marginTop: 4,
   },
-  brandsGrid: {
+  partsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
     marginBottom: 12,
   },
-  brandButton: {
+  partButton: {
     flex: 1,
-    minWidth: '30%',
-    paddingVertical: 12,
+    minWidth: '46%',
+    paddingVertical: 18,
     paddingHorizontal: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
+    gap: 8,
   },
-  brandText: {
-    fontSize: 13,
+  partText: {
+    fontSize: 15,
     textAlign: 'center',
   },
   sellerInfoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 10,
     borderWidth: 1,
     gap: 12,
   },
   sellerInfoTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     marginBottom: 2,
   },
   sellerInfoDesc: {
-    fontSize: 13,
+    fontSize: 15,
   },
   input: {
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 14,
-    minHeight: 80,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    minHeight: 88,
     textAlignVertical: 'top',
   },
   urgentRow: {
@@ -430,27 +516,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryCard: {
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 10,
+    padding: 14,
     borderWidth: 1,
     marginBottom: 20,
   },
   summaryTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 8,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    marginBottom: 10,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 5,
+    gap: 8,
   },
   summaryLabel: {
-    fontSize: 13,
+    fontSize: 15,
   },
   summaryValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   footer: {

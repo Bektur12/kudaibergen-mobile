@@ -6,106 +6,146 @@ import {
 	ScrollView,
 	KeyboardAvoidingView,
 	Platform,
+	useColorScheme,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '@/context/auth'
 import { useRouter } from 'expo-router'
 import { Colors, Spacing, Typography } from '@/constants/theme'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { useColorScheme } from 'react-native'
+import { ApiError } from '@/lib/api'
+import { isValidKgPhone } from '@/lib/auth-api'
+
+type Step = 'phone' | 'code'
 
 export default function LoginScreen() {
-	const [email, setEmail] = useState('')
-	const [password, setPassword] = useState('')
+	const [step, setStep] = useState<Step>('phone')
+	const [phone, setPhone] = useState('+996')
+	const [code, setCode] = useState('')
 	const [error, setError] = useState('')
-	const { login } = useAuth()
+	const [busy, setBusy] = useState(false)
+	const [debugCode, setDebugCode] = useState<string | null>(null)
+
+	const { requestCode, verifyCode } = useAuth()
 	const router = useRouter()
 	const colorScheme = useColorScheme() ?? 'dark'
 	const isDark = colorScheme === 'dark'
 	const colors = isDark ? Colors.dark : Colors.light
+	const insets = useSafeAreaInsets()
 
-	const handleLogin = async (role: 'buyer' | 'seller') => {
-		if (!email || !password) {
-			setError('Please fill in all fields')
+	const handleRequestCode = async () => {
+		setError('')
+		if (!isValidKgPhone(phone)) {
+			setError('Формат номера: +996XXXXXXXXX')
 			return
 		}
+		setBusy(true)
 		try {
-			await login(email, password, role)
-			router.replace('/')
+			const res = await requestCode(phone)
+			setDebugCode(res.debugCode ?? null)
+			setStep('code')
 		} catch (err) {
-			setError('Login failed')
+			setError(err instanceof ApiError ? err.message : 'Не удалось отправить код')
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	const handleVerify = async () => {
+		setError('')
+		if (code.length !== 4) {
+			setError('Введите 4-значный код')
+			return
+		}
+		setBusy(true)
+		try {
+			const result = await verifyCode(phone, code)
+			if (result.isNewUser) {
+				router.replace('/auth/register')
+			} else {
+				router.replace('/')
+			}
+		} catch (err) {
+			setError(err instanceof ApiError ? err.message : 'Неверный код')
+		} finally {
+			setBusy(false)
 		}
 	}
 
 	return (
-		<KeyboardAvoidingView
-			behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-			style={{ flex: 1 }}
-		>
+		<KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
 			<ScrollView
 				style={[styles.container, { backgroundColor: colors.background }]}
-				contentContainerStyle={styles.content}
+				contentContainerStyle={[styles.content, { paddingTop: Spacing.four + insets.top }]}
 			>
 				<View style={styles.header}>
-					<Text style={[styles.title, { color: colors.text }]}>
-						Кудайберген
-					</Text>
+					<Text style={[styles.title, { color: colors.text }]}>Кудайберген</Text>
 					<Text style={[styles.subtitle, { color: colors.textSecondary }]}>
 						Автозапчасти и услуги
 					</Text>
 				</View>
 
-				{error && (
+				{error ? (
 					<View style={[styles.errorBox, { backgroundColor: colors.error }]}>
 						<Text style={styles.errorText}>{error}</Text>
 					</View>
+				) : null}
+
+				{step === 'phone' ? (
+					<View style={styles.form}>
+						<Input
+							placeholder="+996700123456"
+							value={phone}
+							onChangeText={setPhone}
+							keyboardType="phone-pad"
+							autoCapitalize="none"
+						/>
+						<Button
+							title={busy ? 'Отправка...' : 'Получить код'}
+							onPress={handleRequestCode}
+							size="large"
+							disabled={busy}
+							style={{ marginTop: Spacing.four }}
+						/>
+					</View>
+				) : (
+					<View style={styles.form}>
+						<Text style={[styles.subtitle, { color: colors.textSecondary, marginBottom: Spacing.three }]}>
+							Код отправлен на {phone}
+						</Text>
+						<Input
+							placeholder="0000"
+							value={code}
+							onChangeText={setCode}
+							keyboardType="number-pad"
+							maxLength={4}
+						/>
+						{debugCode ? (
+							<Text style={[styles.footerText, { color: colors.textTertiary, marginTop: Spacing.two }]}>
+								Dev-код: {debugCode}
+							</Text>
+						) : null}
+						<Button
+							title={busy ? 'Проверка...' : 'Подтвердить'}
+							onPress={handleVerify}
+							size="large"
+							disabled={busy}
+							style={{ marginTop: Spacing.four }}
+						/>
+						<Button
+							title="Изменить номер"
+							onPress={() => {
+								setStep('phone')
+								setCode('')
+								setError('')
+							}}
+							variant="secondary"
+							size="large"
+							style={{ marginTop: Spacing.three }}
+						/>
+					</View>
 				)}
-
-				<View style={styles.form}>
-					<Input
-						placeholder="Email"
-						value={email}
-						onChangeText={setEmail}
-						keyboardType="email-address"
-						autoCapitalize="none"
-					/>
-
-					<Input
-						placeholder="Password"
-						value={password}
-						onChangeText={setPassword}
-						secureTextEntry
-						style={{ marginTop: Spacing.three }}
-					/>
-				</View>
-
-				<View style={styles.actions}>
-					<Button
-						title="Вход как Покупатель"
-						onPress={() => handleLogin('buyer')}
-						size="large"
-					/>
-
-					<Button
-						title="Вход как Продавец"
-						onPress={() => handleLogin('seller')}
-						variant="secondary"
-						size="large"
-						style={{ marginTop: Spacing.three }}
-					/>
-				</View>
-
-				<View style={styles.footer}>
-					<Text style={[styles.footerText, { color: colors.textSecondary }]}>
-						Тестовые учетные данные:
-					</Text>
-					<Text style={[styles.footerText, { color: colors.textTertiary }]}>
-						Email: test@example.com
-					</Text>
-					<Text style={[styles.footerText, { color: colors.textTertiary }]}>
-						Password: любой пароль
-					</Text>
-				</View>
 			</ScrollView>
 		</KeyboardAvoidingView>
 	)
@@ -117,7 +157,6 @@ const styles = StyleSheet.create({
 	},
 	content: {
 		padding: Spacing.four,
-		justifyContent: 'space-between',
 		minHeight: '100%',
 	},
 	header: {
@@ -146,14 +185,7 @@ const styles = StyleSheet.create({
 		fontWeight: '600',
 		fontSize: 14,
 	},
-	actions: {
-		marginBottom: Spacing.six,
-	},
-	footer: {
-		marginTop: Spacing.six,
-	},
 	footerText: {
 		fontSize: Typography.secondary.fontSize,
-		marginVertical: Spacing.one,
 	},
 })

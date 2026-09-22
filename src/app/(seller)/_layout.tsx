@@ -10,13 +10,12 @@ export default function SellerLayout() {
 			<Stack.Screen
 				name="(tabs)"
 				options={{
-					animationEnabled: false,
+					animation: 'none',
 				}}
 			/>
 			<Stack.Screen
 				name="request/[id]"
 				options={{
-					animationEnabled: true,
 					presentation: 'card',
 				}}
 			/>

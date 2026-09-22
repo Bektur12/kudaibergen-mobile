@@ -1,21 +1,57 @@
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
-import { useColorScheme } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, useColorScheme } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Colors, Spacing, Typography } from '@/constants/theme'
 import { Header } from '@/components/ui/Header'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { createOffer } from '@/lib/request-api'
+import { ApiError } from '@/lib/api'
 
 export default function SellerRequestDetailScreen() {
-	const { id } = useLocalSearchParams()
+	// These come straight from the requests list (SellerRequestRow) that
+	// navigated here — no second fetch needed, GET /requests/{id} is scoped
+	// to the buyer who owns it anyway.
+	const { id, categoryLabel, description, car, budgetMin, budgetMax, currency } = useLocalSearchParams<{
+		id: string
+		categoryLabel?: string
+		description?: string
+		car?: string
+		budgetMin?: string
+		budgetMax?: string
+		currency?: string
+	}>()
 	const colorScheme = useColorScheme() ?? 'dark'
 	const isDark = colorScheme === 'dark'
 	const colors = isDark ? Colors.dark : Colors.light
 	const router = useRouter()
 	const [price, setPrice] = useState('')
-	const [description, setDescription] = useState('')
+	const [comment, setComment] = useState('')
+	const [deliveryDays, setDeliveryDays] = useState('')
+	const [sending, setSending] = useState(false)
+
+	const budgetLine =
+		budgetMin || budgetMax
+			? `${budgetMin ?? ''}${budgetMin && budgetMax ? '–' : ''}${budgetMax ?? ''} ${currency ?? ''}`.trim()
+			: null
+
+	const handleSubmit = async () => {
+		setSending(true)
+		try {
+			await createOffer({
+				requestId: Number(id),
+				price: price.trim() ? parseInt(price.replace(/\D/g, ''), 10) : undefined,
+				comment: comment.trim() || undefined,
+				deliveryDays: deliveryDays.trim() ? parseInt(deliveryDays.replace(/\D/g, ''), 10) : undefined,
+			})
+			router.back()
+		} catch (err) {
+			Alert.alert('Не удалось отправить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз')
+		} finally {
+			setSending(false)
+		}
+	}
 
 	return (
 		<KeyboardAvoidingView
@@ -35,11 +71,15 @@ export default function SellerRequestDetailScreen() {
 				>
 					<Card variant="outlined">
 						<Text style={[styles.carModel, { color: colors.text }]}>
-							BMW X5
+							{categoryLabel || 'Запчасть'}
 						</Text>
-						<Text style={[styles.carYear, { color: colors.textSecondary }]}>
-							2020 · Ищет тормозные колодки
-						</Text>
+						{!!car && (
+							<Text style={[styles.carYear, { color: colors.textSecondary }]}>{car}</Text>
+						)}
+						<Text style={[styles.description, { color: colors.text }]}>{description}</Text>
+						{budgetLine && (
+							<Text style={[styles.budget, { color: colors.accent }]}>Бюджет: {budgetLine}</Text>
+						)}
 					</Card>
 
 					<Text style={[styles.label, { color: colors.text, marginTop: Spacing.five }]}>
@@ -47,7 +87,7 @@ export default function SellerRequestDetailScreen() {
 					</Text>
 
 					<Input
-						placeholder="Цена в тенге"
+						placeholder="Цена в сомах (необязательно)"
 						value={price}
 						onChangeText={setPrice}
 						keyboardType="number-pad"
@@ -56,16 +96,25 @@ export default function SellerRequestDetailScreen() {
 
 					<Input
 						placeholder="Описание вашего предложения"
-						value={description}
-						onChangeText={setDescription}
+						value={comment}
+						onChangeText={setComment}
 						multiline
 						numberOfLines={4}
 						style={styles.input}
 					/>
 
+					<Input
+						placeholder="Срок доставки, дней (необязательно)"
+						value={deliveryDays}
+						onChangeText={setDeliveryDays}
+						keyboardType="number-pad"
+						style={styles.input}
+					/>
+
 					<Button
-						title="Отправить предложение"
-						onPress={() => router.back()}
+						title={sending ? 'Отправка...' : 'Отправить предложение'}
+						onPress={handleSubmit}
+						disabled={sending}
 						size="large"
 						style={styles.submitButton}
 					/>
@@ -94,6 +143,16 @@ const styles = StyleSheet.create({
 	carYear: {
 		fontSize: 13,
 		fontWeight: '500',
+		marginBottom: Spacing.two,
+	},
+	description: {
+		fontSize: 14,
+		lineHeight: 20,
+		marginBottom: Spacing.two,
+	},
+	budget: {
+		fontSize: 14,
+		fontWeight: '700',
 	},
 	label: {
 		fontSize: Typography.heading.fontSize,

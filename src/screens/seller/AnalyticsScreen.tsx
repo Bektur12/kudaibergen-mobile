@@ -1,18 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { C, T, ScreenHeader } from '@/components/ui';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { C, ScreenHeader } from '@/components/ui';
+import { getPartCategoryInfo } from '@/data/parts';
+import { toProductCategory } from '@/lib/store-api';
+import { getMyAnalytics, type SellerAnalytics } from '@/lib/seller-api';
 
-const PERIODS = ['Неделя', 'Месяц', 'Год'];
-const TOP_PRODUCTS = [
-  { rank: 1, name: 'Тормоз. диски', views: 150, conversion: '18%' },
-  { rank: 2, name: 'Фильтр масла', views: 120, conversion: '16%' },
-  { rank: 3, name: 'Амортизаторы', views: 90, conversion: '14%' },
-];
-const TRAFFIC_SOURCES = [
-  { source: 'Поиск', percent: 45, icon: '🔍' },
-  { source: 'Рекоменда', percent: 30, icon: '💗' },
-  { source: 'Карта', percent: 15, icon: '🗺️' },
-  { source: 'Прямой', percent: 10, icon: '➤' },
+// /my-store/analytics only accepts these two — confirmed against the live
+// OpenAPI enum (the mock UI had a third "Год" tab that has no backing value).
+const PERIODS: { id: string; label: string }[] = [
+  { id: 'WEEK', label: 'Неделя' },
+  { id: 'MONTH', label: 'Месяц' },
 ];
 
 const styles = StyleSheet.create({
@@ -50,13 +47,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
+  centerFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   metricsGrid: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 20,
+    flexWrap: 'wrap',
   },
   metricCard: {
     flex: 1,
+    minWidth: '46%',
     backgroundColor: C.surface,
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -73,11 +77,6 @@ const styles = StyleSheet.create({
     color: C.primary,
     marginVertical: 4,
   },
-  metricChange: {
-    fontSize: 12,
-    color: C.success,
-    fontWeight: '600',
-  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
@@ -85,7 +84,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: 12,
   },
-  productRow: {
+  categoryRow: {
     backgroundColor: C.surface,
     flexDirection: 'row',
     alignItems: 'center',
@@ -95,143 +94,136 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 8,
   },
-  productRank: {
-    fontWeight: '700',
-    fontSize: 16,
-    color: C.primary,
-    width: 24,
-  },
-  productName: {
+  categoryName: {
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
     color: C.textPrimary,
   },
-  productStats: {
+  categoryStats: {
     fontSize: 12,
     color: C.textSecondary,
   },
-  trafficRow: {
-    backgroundColor: C.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-  },
-  trafficHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  trafficIcon: {
-    fontSize: 16,
-  },
-  trafficLabel: {
-    flex: 1,
+  emptyText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: C.textPrimary,
-  },
-  trafficPercent: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.primary,
-  },
-  trafficBar: {
-    height: 6,
-    backgroundColor: C.bg,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  trafficFill: {
-    height: '100%',
-    backgroundColor: C.primary,
+    color: C.textTertiary,
   },
 });
 
+function money(n: number) {
+  return `${n.toLocaleString('ru-RU')} с`;
+}
+
 export default function AnalyticsScreen() {
-  const [period, setPeriod] = useState('Месяц');
+  const [period, setPeriod] = useState('WEEK');
+  const [data, setData] = useState<SellerAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!cancelled) setLoading(true);
+      try {
+        const res = await getMyAnalytics(period);
+        if (!cancelled) setData(res);
+      } catch {
+        if (!cancelled) setData(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [period]);
 
   return (
     <View style={styles.container}>
       <ScreenHeader title="Аналитика" />
 
-      {/* Period Selector */}
       <View style={styles.periodSelector}>
         {PERIODS.map((p) => (
           <TouchableOpacity
-            key={p}
-            style={[styles.periodButton, period === p && styles.periodButtonActive]}
-            onPress={() => setPeriod(p)}
+            key={p.id}
+            style={[styles.periodButton, period === p.id && styles.periodButtonActive]}
+            onPress={() => setPeriod(p.id)}
           >
-            <Text style={[styles.periodText, period === p && styles.periodTextActive]}>
-              {p}
-            </Text>
+            <Text style={[styles.periodText, period === p.id && styles.periodTextActive]}>{p.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          {/* Key Metrics */}
-          <View style={styles.metricsGrid}>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Просмотров</Text>
-              <Text style={styles.metricValue}>1,247</Text>
-              <Text style={styles.metricChange}>+12%</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Контакты</Text>
-              <Text style={styles.metricValue}>284</Text>
-              <Text style={styles.metricChange}>+8%</Text>
-            </View>
-          </View>
-
-          <View style={styles.metricsGrid}>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Конверсия</Text>
-              <Text style={styles.metricValue}>22.8%</Text>
-              <Text style={styles.metricChange}>+2%</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Доход</Text>
-              <Text style={styles.metricValue}>45K с</Text>
-              <Text style={styles.metricChange}>+18%</Text>
-            </View>
-          </View>
-
-          {/* Top Products */}
-          <Text style={styles.sectionTitle}>Топ товары</Text>
-          {TOP_PRODUCTS.map((prod) => (
-            <View key={prod.rank} style={styles.productRow}>
-              <Text style={styles.productRank}>{prod.rank}</Text>
-              <Text style={styles.productName}>{prod.name}</Text>
-              <View>
-                <Text style={styles.productStats}>👁️ {prod.views}</Text>
-                <Text style={styles.productStats}>{prod.conversion}</Text>
-              </View>
-            </View>
-          ))}
-
-          {/* Traffic Sources */}
-          <Text style={styles.sectionTitle}>Источники трафика</Text>
-          {TRAFFIC_SOURCES.map((source) => (
-            <View key={source.source} style={styles.trafficRow}>
-              <View style={styles.trafficHeader}>
-                <Text style={styles.trafficIcon}>{source.icon}</Text>
-                <Text style={styles.trafficLabel}>{source.source}</Text>
-                <Text style={styles.trafficPercent}>{source.percent}%</Text>
-              </View>
-              <View style={styles.trafficBar}>
-                <View
-                  style={[styles.trafficFill, { width: `${source.percent}%` }]}
-                />
-              </View>
-            </View>
-          ))}
+      {loading ? (
+        <View style={styles.centerFill}>
+          <ActivityIndicator color={C.primary} />
         </View>
-      </ScrollView>
+      ) : !data ? (
+        <View style={styles.centerFill}>
+          <Text style={styles.emptyText}>Не удалось загрузить статистику</Text>
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.content}>
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Получено запросов</Text>
+                <Text style={styles.metricValue}>{data.requestsReceived}</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Ответили</Text>
+                <Text style={styles.metricValue}>{data.requestsAnswered}</Text>
+              </View>
+            </View>
+
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>% ответов</Text>
+                <Text style={styles.metricValue}>{Math.round(data.responseRate * 100)}%</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Среднее время ответа</Text>
+                <Text style={styles.metricValue}>{data.avgResponseMinutes}м</Text>
+              </View>
+            </View>
+
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Упущено запросов</Text>
+                <Text style={styles.metricValue}>{data.requestsMissed}</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Упущенная сумма</Text>
+                <Text style={styles.metricValue}>{money(data.missedBudgetSum)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Сделок закрыто</Text>
+                <Text style={styles.metricValue}>{data.dealsClosed}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.sectionTitle}>Спрос по категориям</Text>
+            {data.topDemandedCategories.length === 0 ? (
+              <Text style={styles.emptyText}>Пока нет данных</Text>
+            ) : (
+              data.topDemandedCategories.map((cat) => {
+                const info = getPartCategoryInfo(toProductCategory(cat.category as never));
+                return (
+                  <View key={cat.category} style={styles.categoryRow}>
+                    <Text style={styles.categoryName}>{info?.label ?? cat.category}</Text>
+                    <Text style={styles.categoryStats}>
+                      {cat.answered}/{cat.requests} отвечено
+                    </Text>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }

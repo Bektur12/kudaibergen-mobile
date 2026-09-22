@@ -6,56 +6,12 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { C, T, Avatar, ScreenHeader } from '@/components/ui';
-
-const CHATS = [
-  {
-    id: 1,
-    name: 'АвтоДетали',
-    initials: 'АД',
-    lastMsg: 'Товар в наличии, приходите!',
-    time: '9:38',
-    unread: 2,
-    online: true,
-  },
-  {
-    id: 2,
-    name: 'Мотор-Плюс',
-    initials: 'МП',
-    lastMsg: 'Фара левая — 6 500 сом',
-    time: '9:15',
-    unread: 0,
-    online: false,
-  },
-  {
-    id: 3,
-    name: 'AutoPro СТО',
-    initials: 'АС',
-    lastMsg: 'Записали вас на 14:00',
-    time: 'Вчера',
-    unread: 1,
-    online: true,
-  },
-  {
-    id: 4,
-    name: 'TireKing',
-    initials: 'ТК',
-    lastMsg: 'Сезонные шины в наличии',
-    time: 'Вчера',
-    unread: 0,
-    online: false,
-  },
-  {
-    id: 5,
-    name: 'Азамат (Camry)',
-    initials: 'АМ',
-    lastMsg: 'Договорились, встречаемся!',
-    time: 'Пн',
-    unread: 0,
-    online: false,
-  },
-];
+import { Ionicons } from '@expo/vector-icons';
+import { C, Avatar, ScreenHeader } from '@/components/ui';
+import type { ChatSummary } from '@/lib/chat-api';
 
 const styles = StyleSheet.create({
   container: {
@@ -71,12 +27,12 @@ const styles = StyleSheet.create({
   },
   searchBar: {
     backgroundColor: C.bg,
-    borderRadius: 12,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    height: 40,
-    gap: 8,
+    paddingHorizontal: 14,
+    height: 48,
+    gap: 10,
   },
   chatItem: {
     backgroundColor: C.surface,
@@ -99,124 +55,128 @@ const styles = StyleSheet.create({
   },
   chatName: {
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 17,
     color: C.textPrimary,
   },
   chatTime: {
-    fontSize: 12,
+    fontSize: 13,
     color: C.textTertiary,
   },
   chatMessage: {
-    fontSize: 13,
+    fontSize: 15,
     color: C.textSecondary,
   },
-  unreadBadge: {
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: C.primary,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unreadText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 12,
+    gap: 8,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 16,
     color: C.textTertiary,
     textAlign: 'center',
   },
 });
 
+function formatTime(iso: string | null): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) {
+    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  }
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
+  return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+}
+
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('') || '?';
+}
+
 export default function MessagesScreen({
+  chats = [],
+  loading = false,
+  refreshing = false,
+  onRefresh,
   onOpenChat,
+  /** Buyer chats are titled by store name; seller chats have no buyer-name field from the API yet. */
+  titleFor = (chat) => chat.storeName,
 }: {
-  onOpenChat?: (id: number) => void;
+  chats?: ChatSummary[];
+  loading?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  onOpenChat?: (chat: ChatSummary) => void;
+  titleFor?: (chat: ChatSummary) => string;
 }) {
   const [search, setSearch] = useState('');
-  const filteredChats = CHATS.filter(
-    (c) => !search || c.name.toLowerCase().includes(search.toLowerCase())
+  const filteredChats = chats.filter(
+    (c) => !search || titleFor(c).toLowerCase().includes(search.toLowerCase())
   );
 
-  const renderChatItem = ({ item }: { item: typeof CHATS[0] }) => (
-    <TouchableOpacity
-      style={styles.chatItem}
-      onPress={() => onOpenChat?.(item.id)}
-    >
-      <View style={{ position: 'relative' }}>
-        <Avatar initials={item.initials} size={44} />
-        {item.online && (
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              right: 0,
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: C.success,
-              borderWidth: 2,
-              borderColor: '#fff',
-            }}
-          />
-        )}
-      </View>
-      <View style={styles.chatContent}>
-        <View style={styles.chatHeader}>
-          <Text style={styles.chatName}>{item.name}</Text>
-          <Text style={styles.chatTime}>{item.time}</Text>
+  const renderChatItem = ({ item }: { item: ChatSummary }) => {
+    const title = titleFor(item);
+    return (
+      <TouchableOpacity style={styles.chatItem} onPress={() => onOpenChat?.(item)}>
+        <Avatar initials={initialsOf(title)} size={44} />
+        <View style={styles.chatContent}>
+          <View style={styles.chatHeader}>
+            <Text style={styles.chatName}>{title}</Text>
+            <Text style={styles.chatTime}>{formatTime(item.lastMessageAt)}</Text>
+          </View>
+          <Text style={styles.chatMessage} numberOfLines={1}>
+            {item.lastMessage || 'Нет сообщений'}
+          </Text>
         </View>
-        <Text style={styles.chatMessage} numberOfLines={1}>
-          {item.lastMsg}
-        </Text>
-      </View>
-      {item.unread > 0 && (
-        <View style={styles.unreadBadge}>
-          <Text style={styles.unreadText}>{item.unread}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
+        {item.hasUnread && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
       <ScreenHeader title="Чаты" />
 
-      {/* Search */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Text>🔍</Text>
+          <Ionicons name="search" size={18} color={C.textTertiary} />
           <TextInput
-            placeholder="Поиск в чатах..."
+            placeholder="Поиск в чатах"
             placeholderTextColor={C.textTertiary}
             value={search}
             onChangeText={setSearch}
             style={{
               flex: 1,
-              fontSize: 14,
+              fontSize: 16,
               color: C.textPrimary,
-              fontWeight: '500',
             }}
           />
         </View>
       </View>
 
-      {/* Chat List */}
-      {filteredChats.length === 0 ? (
+      {loading ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>💬</Text>
+          <ActivityIndicator color={C.primary} />
+        </View>
+      ) : filteredChats.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="chatbubble-outline" size={44} color={C.textTertiary} />
           <Text style={styles.emptyText}>Чатов не найдено</Text>
         </View>
       ) : (
@@ -224,8 +184,12 @@ export default function MessagesScreen({
           data={filteredChats}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderChatItem}
-          scrollEnabled={true}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />
+            ) : undefined
+          }
         />
       )}
     </View>

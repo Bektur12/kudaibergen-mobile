@@ -25,7 +25,7 @@ export function Badge({
 	const isDark = colorScheme === 'dark'
 	const colors = isDark ? Colors.dark : Colors.light
 
-	const variants = {
+	const variants: Record<NonNullable<BadgeProps['variant']>, { bg: string; text: string; border?: string }> = {
 		accent: { bg: colors.accent, text: colors.background },
 		success: { bg: colors.success, text: '#FFFFFF' },
 		warning: { bg: colors.warning, text: '#FFFFFF' },

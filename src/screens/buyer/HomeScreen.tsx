@@ -1,61 +1,19 @@
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { C, CDark, T, NotifBell, Btn, Stars } from '@/components/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { C, NotifBell } from '@/components/ui';
 import QuickRequestCard from '@/components/QuickRequestCard';
-import QuickRequestSheet from '@/components/QuickRequestSheet';
+import { listStores, type StoreSummary } from '@/lib/store-api';
 
-// Data with urgency & stock status
-const LISTINGS = [
-  {
-    id: 1,
-    img: '🚗',
-    title: 'Toyota Camry 70',
-    desc: '2020, 2.5L, АКПП',
-    price: 23500,
-    currency: '$',
-    rating: 4.8,
-    reviews: 24,
-    distance: '20 км',
-    urgency: 'urgent', // 'urgent' | 'available' | null
-  },
-  {
-    id: 2,
-    img: '🚙',
-    title: 'BMW X5 G05',
-    desc: '2021, 3.0L, Автомат',
-    price: 48000,
-    currency: '$',
-    rating: 4.9,
-    reviews: 37,
-    distance: '5 км',
-    urgency: null,
-  },
-  {
-    id: 3,
-    img: '🏎️',
-    title: 'Mercedes E200',
-    desc: '2019, 2.0L, АКПП',
-    price: 31000,
-    currency: '$',
-    rating: 4.7,
-    reviews: 12,
-    distance: '12 км',
-    urgency: 'available',
-  },
-];
-
-const CATEGORIES = [
-  { icon: '🚗', label: 'Авто', tab: 'search', action: 'quick-request-auto' },
-  { icon: '🔧', label: 'Запчасти', tab: 'search' },
-  { icon: '🏥', label: 'Услуги', tab: 'search' },
-  { icon: '📍', label: 'Рядом', tab: 'map' },
-];
-
-const LAST_SEARCH = {
-  vehicle: 'Toyota Camry',
-  category: 'Запчасти',
-  isPersonalized: true,
+const BUSINESS_TYPE_LABELS: Record<string, string> = {
+  parts: 'Магазин запчастей',
+  tires: 'Шиномонтаж',
+  oils: 'Масла и жидкости',
+  accessories: 'Аксессуары',
+  sto: 'СТО',
+  carwash: 'Автомойка',
 };
 
 export default function HomeScreen({
@@ -65,29 +23,35 @@ export default function HomeScreen({
   onNavigate: (tab: string) => void;
   onOpenChat?: () => void;
 }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = isDark ? CDark : C;
+  const colors = C;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [stores, setStores] = useState<StoreSummary[]>([]);
+  const [loadingStores, setLoadingStores] = useState(true);
 
-  const handleQuickRequest = async (data: any) => {
-    // TODO: Send to API
-    console.log('Quick Request:', data);
-
-    // Mock API response - replace with real API call
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve({ sellersMatched: 14 });
-      }, 1500);
-    });
-  };
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await listStores();
+        if (!cancelled) setStores(res.content);
+      } catch {
+        // keep whatever was on screen — a transient network hiccup shouldn't blank the home feed
+      } finally {
+        if (!cancelled) setLoadingStores(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header: City + Notifications */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: insets.top + 12 }]}>
         <View style={styles.headerTop}>
           <View>
             <Text style={[styles.cityLabel, { color: colors.textTertiary }]}>
@@ -102,13 +66,13 @@ export default function HomeScreen({
 
         {/* Search Bar */}
         <View style={[styles.searchBar, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-          <Text>🔍</Text>
+          <Ionicons name="search" size={20} color={colors.textTertiary} />
           <TouchableOpacity
             style={{ flex: 1 }}
             onPress={() => onNavigate('search')}
           >
             <Text style={[styles.searchText, { color: colors.textTertiary }]}>
-              Авто, запчасти, услуги...
+              Поиск запчастей и магазинов
             </Text>
           </TouchableOpacity>
         </View>
@@ -116,144 +80,75 @@ export default function HomeScreen({
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Quick Request Card (Hero Block) */}
-        <QuickRequestCard onPress={() => setIsSheetOpen(true)} />
+        <QuickRequestCard onPress={() => router.push('/(buyer)/quick-request-part' as any)} />
 
-        {/* Promo Block */}
-        <View style={[styles.promoBlock, { backgroundColor: colors.primaryTint || '#FFEDE3' }]}>
-          <Text style={[styles.promoLabel, { color: colors.primary }]}>
-            💡 Рекомендуем
-          </Text>
-          <View style={styles.promoContent}>
-            <View style={[styles.promoImage, { backgroundColor: '#E5A860' }]}>
-              🚗
-            </View>
-            <View style={styles.promoText}>
-              <Text style={[styles.promoTitle, { color: colors.textPrimary }]}>
-                {LAST_SEARCH.vehicle} — {LAST_SEARCH.category}
-              </Text>
-              <Text style={[styles.promoDesc, { color: colors.textSecondary }]}>
-                На основе вашего поиска
-              </Text>
-              <Btn
-                size="sm"
-                onPress={() => onNavigate('search')}
-                style={styles.promoButton}
-              >
-                Найти запчасти
-              </Btn>
-            </View>
-          </View>
-        </View>
-
-        {/* Categories Grid (2x2) */}
-        <View style={[styles.categoriesContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <View style={styles.categoriesGrid}>
-            {CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat.label}
-                style={[styles.categoryButton, { backgroundColor: colors.bg, borderColor: colors.border }]}
-                onPress={() => {
-                  if ('action' in cat && cat.action) {
-                    router.push(`/(buyer)/${cat.action}` as any)
-                  } else {
-                    onNavigate(cat.tab)
-                  }
-                }}
-              >
-                <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                <Text style={[styles.categoryLabel, { color: colors.textPrimary }]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Listings Section */}
+        {/* Stores Section */}
         <View style={styles.listingsContainer}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
-              Новые объявления
+              Магазины запчастей
             </Text>
-            <TouchableOpacity onPress={() => onNavigate('search')}>
-              <Text style={[styles.viewAll, { color: colors.primary }]}>Все →</Text>
-            </TouchableOpacity>
           </View>
 
-          {LISTINGS.map((listing) => (
-            <View
-              key={listing.id}
-              style={[
-                styles.listingCard,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              {/* Image with badge */}
-              <View
+          {loadingStores ? (
+            <ActivityIndicator color={colors.textTertiary} style={{ marginVertical: 16 }} />
+          ) : stores.length === 0 ? (
+            <Text style={[styles.footerText, { color: colors.textTertiary }]}>
+              Пока нет магазинов
+            </Text>
+          ) : (
+            stores.map((store) => (
+              <TouchableOpacity
+                key={store.id}
+                onPress={() => router.push(`/(buyer)/store/${store.id}` as any)}
                 style={[
-                  styles.listingImage,
+                  styles.storeCard,
                   {
-                    backgroundColor:
-                      listing.id === 1 ? '#E5A860' : listing.id === 2 ? '#6B5B95' : '#FF6B6B',
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
                   },
                 ]}
               >
-                <Text style={{ fontSize: 48 }}>{listing.img}</Text>
-
-                {/* Urgency/Available Badge */}
-                {listing.urgency === 'urgent' && (
-                  <View style={[styles.urgencyBadge, { backgroundColor: colors.error }]}>
-                    <Text style={styles.badgeText}>⚡ СРОЧНО</Text>
-                  </View>
-                )}
-                {listing.urgency === 'available' && (
-                  <View style={[styles.availableBadge, { backgroundColor: colors.success }]}>
-                    <Text style={styles.badgeText}>✓ В наличии</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Content */}
-              <View style={styles.listingContent}>
-                <Text style={[styles.listingTitle, { color: colors.textPrimary }]}>
-                  {listing.title}
-                </Text>
-                <Text style={[styles.listingDesc, { color: colors.textSecondary }]}>
-                  {listing.desc}
-                </Text>
-
-                {/* BIG PRICE */}
-                <Text style={[styles.listingPrice, { color: colors.primary }]}>
-                  {listing.currency}
-                  {listing.price.toLocaleString()}
-                </Text>
-
-                {/* Rating + Distance */}
-                <View style={styles.listingFooter}>
-                  <Text style={[styles.footerText, { color: colors.textTertiary }]}>
-                    ⭐ {listing.rating} ({listing.reviews})
-                  </Text>
-                  <Text style={[styles.footerText, { color: colors.textTertiary }]}>
-                    📍 {listing.distance}
+                <View style={[styles.storeLogo, { backgroundColor: colors.surfaceAlt }]}>
+                  <Text style={[styles.storeLogoText, { color: colors.textSecondary }]}>
+                    {store.name.charAt(0)}
                   </Text>
                 </View>
-              </View>
-            </View>
-          ))}
+
+                <View style={styles.storeContent}>
+                  <View style={styles.storeTitleRow}>
+                    <Text style={[styles.storeName, { color: colors.textPrimary }]}>
+                      {store.name}
+                    </Text>
+                    {store.verificationStatus === 'TRUSTED' && (
+                      <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                    )}
+                  </View>
+                  <Text style={[styles.storeType, { color: colors.textSecondary }]}>
+                    {BUSINESS_TYPE_LABELS[store.businessType] || 'Магазин'}
+                  </Text>
+                  <View style={styles.storeFooter}>
+                    <View style={styles.ratingRow}>
+                      <Ionicons name="star" size={14} color={colors.textTertiary} />
+                      <Text style={[styles.footerText, { color: colors.textTertiary }]}>
+                        {store.rating} ({store.reviewCount})
+                      </Text>
+                    </View>
+                    {store.cities[0] && (
+                      <Text
+                        style={[styles.footerText, { color: colors.textTertiary, flex: 1 }]}
+                        numberOfLines={1}
+                      >
+                        {store.cities[0]}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </ScrollView>
-
-      {/* Quick Request Bottom Sheet */}
-      <QuickRequestSheet
-        isOpen={isSheetOpen}
-        onClose={() => setIsSheetOpen(false)}
-        onSubmit={handleQuickRequest}
-        defaultCategory="parts"
-        userCity="Бишкек"
-      />
     </View>
   );
 }
@@ -274,105 +169,30 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cityLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   cityName: {
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '700',
     marginTop: 2,
   },
   searchBar: {
-    borderRadius: 8,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    height: 48,
+    gap: 10,
+    paddingHorizontal: 14,
+    height: 52,
     borderWidth: 1,
   },
   searchText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
   },
 
-  // Promo Block
-  promoBlock: {
-    marginHorizontal: 16,
-    marginVertical: 12,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF6B35',
-    padding: 16,
-  },
-  promoLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  promoContent: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  promoImage: {
-    width: 60,
-    height: 60,
-    backgroundColor: '#E5A860',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontSize: 28,
-    flexShrink: 0,
-  },
-  promoText: {
-    flex: 1,
-  },
-  promoTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  promoDesc: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  promoButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
-
-  // Categories Grid
-  categoriesContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  categoryButton: {
-    flex: 1,
-    minWidth: '45%',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-  },
-  categoryIcon: {
-    fontSize: 32,
-  },
-  categoryLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-
-  // Listings
+  // Stores Section
   listingsContainer: {
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -384,72 +204,62 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  viewAll: {
     fontSize: 13,
     fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
 
-  // Listing Card (with border instead of shadow)
-  listingCard: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 12,
+  // Store Card
+  storeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
     borderWidth: 1,
+    padding: 14,
+    marginBottom: 10,
+    gap: 14,
   },
-  listingImage: {
-    height: 160,
+  storeLogo: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
-    fontSize: 48,
-    position: 'relative',
+    flexShrink: 0,
   },
-  urgencyBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  availableBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  listingContent: {
-    padding: 12,
-  },
-  listingTitle: {
-    fontSize: 15,
+  storeLogoText: {
+    fontSize: 22,
     fontWeight: '700',
   },
-  listingDesc: {
-    fontSize: 13,
-    marginTop: 4,
+  storeContent: {
+    flex: 1,
   },
-  listingPrice: {
-    fontSize: 24,
-    fontWeight: '800',
-    marginVertical: 8,
-  },
-  listingFooter: {
+  storeTitleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    fontSize: 12,
+    alignItems: 'center',
+    gap: 6,
+  },
+  storeName: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  storeType: {
+    fontSize: 15,
+    marginTop: 2,
+  },
+  storeFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 8,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   footerText: {
-    fontSize: 12,
+    fontSize: 13,
   },
 });

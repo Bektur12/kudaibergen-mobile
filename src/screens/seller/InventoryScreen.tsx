@@ -1,61 +1,17 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  TextInput,
-  FlatList,
-} from 'react-native';
-import { C, T, ScreenHeader, Btn } from '@/components/ui';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { C } from '@/components/ui';
+import { PART_CATEGORIES } from '@/data/parts';
+import { getMyCategories, setMyCategories } from '@/lib/seller-api';
+import type { ApiPartCategory } from '@/lib/store-api';
+import { ApiError } from '@/lib/api';
 
-const PRODUCTS = [
-  {
-    id: 1,
-    name: 'Тормозные диски Brembo Toyota Camry',
-    price: 4500,
-    currency: 'с',
-    stock: 5,
-    views: 123,
-    msgs: 2,
-    icon: '🔩',
-    status: 'active',
-  },
-  {
-    id: 2,
-    name: 'Масляный фильтр Mann BMW 5-я серия',
-    price: 850,
-    currency: 'с',
-    stock: 23,
-    views: 456,
-    msgs: 12,
-    icon: '⚙️',
-    status: 'active',
-  },
-  {
-    id: 3,
-    name: 'Аккумулятор Bosch S5 60Ah',
-    price: 8500,
-    currency: 'с',
-    stock: 3,
-    views: 89,
-    msgs: 4,
-    icon: '🔋',
-    status: 'active',
-  },
-  {
-    id: 4,
-    name: 'Фара LED BMW X5 G05 правая',
-    price: 45000,
-    currency: 'с',
-    stock: 0,
-    views: 234,
-    msgs: 7,
-    icon: '💡',
-    status: 'out',
-  },
-];
+// The backend has no per-SKU product catalog — a store's "inventory" is just
+// which of the 7 fixed part categories it carries, and that's exactly what
+// drives which buyer requests reach it (GET /my-store/requests matching).
+// This tab used to mock a priced product list; there's no endpoint backing
+// that shape, so it's repurposed to manage the real thing instead.
 
 const styles = StyleSheet.create({
   container: {
@@ -65,222 +21,156 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: C.surface,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
   },
   headerTitle: {
     fontWeight: '700',
     fontSize: 17,
     color: C.textPrimary,
+    marginBottom: 4,
   },
-  addButton: {
-    backgroundColor: C.primary,
-    borderRadius: 10,
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchBar: {
-    backgroundColor: C.bg,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    height: 40,
-    gap: 8,
-    marginBottom: 10,
-  },
-  filterBar: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  filterButton: {
-    flex: 1,
-    backgroundColor: C.bg,
-    borderRadius: 10,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  filterButtonText: {
+  headerSubtitle: {
     fontSize: 13,
-    fontWeight: '600',
     color: C.textSecondary,
   },
-  productsList: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  content: {
+    padding: 16,
   },
-  productCard: {
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: C.surface,
     borderRadius: 12,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  productContent: {
-    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 10,
     gap: 12,
-    padding: 12,
+    borderWidth: 1,
   },
-  productImage: {
-    width: 70,
-    height: 70,
-    backgroundColor: C.bg,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productInfo: {
+  categoryLabel: {
     flex: 1,
-  },
-  productName: {
-    fontWeight: '700',
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
     color: C.textPrimary,
   },
-  productPrice: {
-    fontWeight: '800',
-    fontSize: 16,
-    color: C.primary,
-    marginVertical: 4,
-  },
-  productStats: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  productStat: {
-    fontSize: 11,
-    color: C.textTertiary,
-  },
-  productFooter: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-  },
-  footerButton: {
-    flex: 1,
-    backgroundColor: C.bg,
-    borderRadius: 8,
-    paddingVertical: 8,
+  saveButton: {
+    backgroundColor: C.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
+    marginTop: 12,
   },
-  footerButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.textSecondary,
+  saveButtonDisabled: {
+    opacity: 0.5,
   },
-  stockBadge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
-  stockText: {
-    fontSize: 11,
-    color: '#2E7D32',
-    fontWeight: '600',
-  },
-  outOfStock: {
-    backgroundColor: '#FFEBEE',
-  },
-  outOfStockText: {
-    color: '#C62828',
+  centerFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
 export default function InventoryScreen() {
-  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Set<ApiPartCategory>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
-  const products = PRODUCTS.filter(
-    (p) => !search || p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const categories = await getMyCategories();
+        if (!cancelled) setSelected(new Set(categories));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const renderProductCard = ({ item }: { item: typeof PRODUCTS[0] }) => (
-    <View style={styles.productCard}>
-      <View style={styles.productContent}>
-        <View style={styles.productImage}>
-          <Text style={{ fontSize: 32 }}>{item.icon}</Text>
-        </View>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName}>{item.name}</Text>
-          <Text style={styles.productPrice}>
-            {item.price} {item.currency}
-          </Text>
-          <View style={styles.productStats}>
-            <Text style={styles.productStat}>👁️ {item.views}</Text>
-            <Text style={styles.productStat}>💬 {item.msgs}</Text>
-          </View>
-        </View>
-        <View style={[styles.stockBadge, item.stock === 0 && styles.outOfStock]}>
-          <Text style={[styles.stockText, item.stock === 0 && styles.outOfStockText]}>
-            {item.stock === 0 ? 'Нет' : `${item.stock} шт`}
-          </Text>
-        </View>
+  const toggle = (cat: ApiPartCategory) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const saved = await setMyCategories(Array.from(selected));
+      setSelected(new Set(saved));
+      setDirty(false);
+    } catch (err) {
+      Alert.alert('Не удалось сохранить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerFill]}>
+        <ActivityIndicator color={C.primary} />
       </View>
-      <View style={styles.productFooter}>
-        <TouchableOpacity style={styles.footerButton}>
-          <Text style={styles.footerButtonText}>✏️ Редактировать</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.footerButton}>
-          <Text style={styles.footerButtonText}>📊 Статистика</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Товары</Text>
-          <TouchableOpacity style={styles.addButton}>
-            <Text style={{ fontSize: 20, color: '#fff', fontWeight: '700' }}>
-              +
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.searchBar}>
-          <Text>🔍</Text>
-          <TextInput
-            placeholder="Поиск в товарах..."
-            placeholderTextColor={C.textTertiary}
-            value={search}
-            onChangeText={setSearch}
-            style={{
-              flex: 1,
-              fontSize: 14,
-              color: C.textPrimary,
-              fontWeight: '500',
-            }}
-          />
-        </View>
-        <View style={styles.filterBar}>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterButtonText}>🔽 Фильтр</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterButtonText}>📊 Сортировка</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.headerTitle}>Категории товаров</Text>
+        <Text style={styles.headerSubtitle}>
+          От этого зависит, какие запросы покупателей увидит ваш магазин
+        </Text>
       </View>
 
-      {/* Products List */}
-      <FlatList
-        data={products}
-        renderItem={renderProductCard}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.productsList}
-        showsVerticalScrollIndicator={false}
-      />
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {PART_CATEGORIES.map((cat) => {
+          const apiCategory = cat.id.toUpperCase() as ApiPartCategory;
+          const isOn = selected.has(apiCategory);
+          return (
+            <TouchableOpacity
+              key={cat.id}
+              style={[
+                styles.categoryRow,
+                { borderColor: isOn ? C.primary : C.border, backgroundColor: isOn ? '#FFF3E0' : C.surface },
+              ]}
+              onPress={() => toggle(apiCategory)}
+            >
+              <Ionicons name={cat.icon} size={22} color={isOn ? C.primary : C.textSecondary} />
+              <Text style={styles.categoryLabel}>{cat.label}</Text>
+              <Ionicons
+                name={isOn ? 'checkmark-circle' : 'ellipse-outline'}
+                size={22}
+                color={isOn ? C.primary : C.textTertiary}
+              />
+            </TouchableOpacity>
+          );
+        })}
+
+        <TouchableOpacity
+          style={[styles.saveButton, (!dirty || saving) && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={!dirty || saving}
+        >
+          <Text style={styles.saveButtonText}>{saving ? 'Сохранение...' : 'Сохранить'}</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }

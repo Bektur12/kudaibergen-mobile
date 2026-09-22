@@ -2,7 +2,7 @@ import React from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import ChatDetailScreen from '@/screens/ChatDetailScreen'
 
-export default function ChatDetail() {
+export default function SellerChatDetail() {
 	const router = useRouter()
 	const { id, name, online, lastSeenAt } = useLocalSearchParams<{
 		id: string

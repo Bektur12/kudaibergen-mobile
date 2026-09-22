@@ -49,7 +49,7 @@ export default function SellerTabsLayout() {
 			<Tabs.Screen
 				name="inventory"
 				options={{
-					title: 'Товары',
+					title: 'Категории',
 					tabBarIcon: ({ color, size }) => (
 						<Ionicons name="cube-outline" size={size} color={color} />
 					),
