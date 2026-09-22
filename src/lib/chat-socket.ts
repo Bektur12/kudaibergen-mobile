@@ -58,6 +58,16 @@ function ensureClient(): Client {
 		brokerURL: resolveWsUrl(),
 		connectHeaders: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
 		reconnectDelay: 3000,
+		// Without heartbeats (stompjs defaults to 0/0, i.e. off), the client has
+		// no way to notice a silently-dead connection — very real on mobile
+		// networks (Wi-Fi↔cellular handoff, carrier NAT timing out an idle
+		// socket) where the OS never delivers a close/error event at all.
+		// reconnectDelay only fires once the client *knows* it's disconnected;
+		// heartbeats are what makes it know. Values negotiate per the STOMP
+		// protocol (min of the two sides per direction), so this is safe even
+		// if the server doesn't advertise heartbeats itself.
+		heartbeatIncoming: 10000,
+		heartbeatOutgoing: 10000,
 		// Runs before every CONNECT attempt — including every automatic
 		// reconnect stompjs fires. Without this, a reconnect reuses whatever
 		// connectHeaders was set at client construction time; once the access
