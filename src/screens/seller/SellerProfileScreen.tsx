@@ -25,8 +25,22 @@ import {
   createBranch,
   updateBranch,
   deleteBranch,
+  getMyTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
   type Branch,
+  type Template,
 } from '@/lib/seller-api';
+
+// Presets so a new seller isn't staring at a blank title/body — tap one to
+// prefill the form, still editable before saving.
+const TEMPLATE_PRESETS = [
+  { title: 'В наличии', body: 'Здравствуйте! Товар есть в наличии, можем оформить заказ.' },
+  { title: 'Нет в наличии', body: 'Здравствуйте! К сожалению, этого товара сейчас нет в наличии.' },
+  { title: 'Свяжемся', body: 'Здравствуйте! Уточним детали и свяжемся с вами в ближайшее время.' },
+  { title: 'Нужно уточнить', body: 'Здравствуйте! Нужно уточнить пару деталей по вашему запросу, напишите нам.' },
+];
 
 const VERIFICATION_LABELS: Record<string, string> = {
   NEW: 'Новый',
@@ -246,6 +260,7 @@ export default function SellerProfileScreen() {
 
   const [store, setStore] = useState<StoreDetails | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [storeModalVisible, setStoreModalVisible] = useState(false);
@@ -260,14 +275,25 @@ export default function SellerProfileScreen() {
   const [branchPhone, setBranchPhone] = useState('');
   const [savingBranch, setSavingBranch] = useState(false);
 
+  const [templateModalVisible, setTemplateModalVisible] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
+  const [templateTitle, setTemplateTitle] = useState('');
+  const [templateBody, setTemplateBody] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     async function loadAll() {
       try {
-        const [storeRes, branchesRes] = await Promise.all([getMyStore(), getMyBranches()]);
+        const [storeRes, branchesRes, templatesRes] = await Promise.all([
+          getMyStore(),
+          getMyBranches(),
+          getMyTemplates(),
+        ]);
         if (!cancelled) {
           setStore(storeRes);
           setBranches(branchesRes);
+          setTemplates(templatesRes);
         }
       } catch {
         // keep whatever was already on screen
@@ -342,6 +368,58 @@ export default function SellerProfileScreen() {
           try {
             await deleteBranch(id);
             setBranches((prev) => prev.filter((b) => b.id !== id));
+          } catch (err) {
+            Alert.alert('Не удалось удалить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+          }
+        },
+      },
+    ]);
+  };
+
+  const openTemplateModal = (template?: Template) => {
+    setEditingTemplateId(template?.id ?? null);
+    setTemplateTitle(template?.title ?? '');
+    setTemplateBody(template?.body ?? '');
+    setTemplateModalVisible(true);
+  };
+
+  const applyTemplatePreset = (preset: { title: string; body: string }) => {
+    setTemplateTitle(preset.title);
+    setTemplateBody(preset.body);
+  };
+
+  const saveTemplate = async () => {
+    if (!templateTitle.trim() || !templateBody.trim()) {
+      Alert.alert('Заполните название и текст шаблона');
+      return;
+    }
+    setSavingTemplate(true);
+    try {
+      const payload = { title: templateTitle.trim(), body: templateBody.trim() };
+      const saved = editingTemplateId
+        ? await updateTemplate(editingTemplateId, payload)
+        : await createTemplate(payload);
+      setTemplates((prev) =>
+        editingTemplateId ? prev.map((t) => (t.id === editingTemplateId ? saved : t)) : [...prev, saved]
+      );
+      setTemplateModalVisible(false);
+    } catch (err) {
+      Alert.alert('Не удалось сохранить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const removeTemplate = (id: number) => {
+    Alert.alert('Удалить шаблон?', undefined, [
+      { text: 'Отмена', style: 'cancel' },
+      {
+        text: 'Удалить',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteTemplate(id);
+            setTemplates((prev) => prev.filter((t) => t.id !== id));
           } catch (err) {
             Alert.alert('Не удалось удалить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
           }
@@ -466,6 +544,38 @@ export default function SellerProfileScreen() {
           )}
         </View>
 
+        {/* Quick-reply templates */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Шаблоны ответов</Text>
+            <TouchableOpacity onPress={() => openTemplateModal()}>
+              <Text style={{ fontSize: 18 }}>➕</Text>
+            </TouchableOpacity>
+          </View>
+          {templates.length === 0 ? (
+            <Text style={{ color: C.textTertiary, fontSize: 13 }}>
+              Шаблонов пока нет — добавьте, чтобы быстро отвечать на запросы
+            </Text>
+          ) : (
+            templates.map((template) => (
+              <View key={template.id} style={styles.branchCard}>
+                <Text style={[styles.branchDetail, { fontWeight: '700', color: C.textPrimary }]}>
+                  {template.title}
+                </Text>
+                <Text style={styles.branchDetail}>{template.body}</Text>
+                <View style={styles.branchActions}>
+                  <TouchableOpacity style={styles.branchActionButton} onPress={() => openTemplateModal(template)}>
+                    <Text style={{ fontSize: 14 }}>✏️</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.branchActionButton} onPress={() => removeTemplate(template.id)}>
+                    <Text style={{ fontSize: 14 }}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
         {/* Menu */}
         <View style={styles.menuSection}>
           <Text style={[styles.sectionTitle, { paddingHorizontal: 20, paddingTop: 16, marginBottom: 0 }]}>
@@ -535,6 +645,49 @@ export default function SellerProfileScreen() {
                 >
                   <Text style={[styles.modalButtonText, { color: '#fff' }]}>
                     {savingBranch ? 'Сохранение...' : 'Сохранить'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Add/edit quick-reply template modal */}
+      <Modal visible={templateModalVisible} transparent animationType="slide" onRequestClose={() => setTemplateModalVisible(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setTemplateModalVisible(false)}>
+            <View style={styles.modalSheet}>
+              <Text style={styles.modalTitle}>{editingTemplateId ? 'Изменить шаблон' : 'Новый шаблон'}</Text>
+              {!editingTemplateId && (
+                <View style={styles.categoryTags}>
+                  {TEMPLATE_PRESETS.map((preset) => (
+                    <TouchableOpacity
+                      key={preset.title}
+                      style={[styles.categoryTag, { backgroundColor: C.bg, borderWidth: 1, borderColor: C.border }]}
+                      onPress={() => applyTemplatePreset(preset)}
+                    >
+                      <Text style={[styles.categoryTagText, { color: C.textPrimary }]}>{preset.title}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <Input placeholder="Название (например, «В наличии»)" value={templateTitle} onChangeText={setTemplateTitle} />
+              <Input placeholder="Текст ответа" value={templateBody} onChangeText={setTemplateBody} multiline numberOfLines={3} />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.bg }]}
+                  onPress={() => setTemplateModalVisible(false)}
+                >
+                  <Text style={[styles.modalButtonText, { color: C.textPrimary }]}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: C.primary }]}
+                  onPress={saveTemplate}
+                  disabled={savingTemplate}
+                >
+                  <Text style={[styles.modalButtonText, { color: '#fff' }]}>
+                    {savingTemplate ? 'Сохранение...' : 'Сохранить'}
                   </Text>
                 </TouchableOpacity>
               </View>
