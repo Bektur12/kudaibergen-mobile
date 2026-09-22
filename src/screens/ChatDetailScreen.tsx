@@ -334,6 +334,14 @@ export default function ChatDetailScreen({
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
 
+  // Single insertion point so every source (REST response, STOMP echo,
+  // pagination) agrees on one rule: never add an id that's already there.
+  // Without this, a message we just sent can double up if the STOMP echo
+  // for it arrives before the REST call's own response resolves.
+  const addMessage = useCallback((message: ChatMessage) => {
+    setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [message, ...prev]));
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -360,13 +368,13 @@ export default function ChatDetailScreen({
   // `send`/`attachPhoto`, and the broker echoes them back on this topic too.
   useEffect(() => {
     const unsubscribe = subscribeToChat(chatId, (message) => {
-      setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [message, ...prev]));
+      addMessage(message);
       if (message.senderId !== myId) {
         markChatRead(chatId).catch(() => {});
       }
     });
     return unsubscribe;
-  }, [chatId, myId]);
+  }, [chatId, myId, addMessage]);
 
   // Presence: server pushes the other side's online status whenever it
   // changes (initial value came in via route params from ChatSummary).
@@ -402,7 +410,10 @@ export default function ChatDetailScreen({
     try {
       const nextPage = page + 1;
       const res = await getChatMessages(chatId, nextPage);
-      setMessages((prev) => [...prev, ...res.content]);
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        return [...prev, ...res.content.filter((m) => !existingIds.has(m.id))];
+      });
       setPage(nextPage);
       setHasMore(nextPage < res.totalPages - 1);
     } finally {
@@ -453,7 +464,7 @@ export default function ChatDetailScreen({
     }
     try {
       const message = await sendTextMessage(chatId, body);
-      setMessages((prev) => [message, ...prev]);
+      addMessage(message);
     } catch (err) {
       setInput(body);
       Alert.alert('Не удалось отправить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
@@ -485,7 +496,7 @@ export default function ChatDetailScreen({
       } as unknown as Blob);
       form.append('type', 'PHOTO');
       const message = await sendMediaMessage(chatId, form);
-      setMessages((prev) => [message, ...prev]);
+      addMessage(message);
     } catch (err) {
       Alert.alert('Не удалось отправить фото', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
     } finally {
@@ -543,7 +554,7 @@ export default function ChatDetailScreen({
       form.append('type', 'VOICE');
       form.append('durationSeconds', String(durationSeconds));
       const message = await sendMediaMessage(chatId, form);
-      setMessages((prev) => [message, ...prev]);
+      addMessage(message);
     } catch (err) {
       Alert.alert('Не удалось отправить голосовое', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
     } finally {
