@@ -14,6 +14,7 @@ import {
 	registerForPushNotificationsAsync,
 	syncDeviceToken,
 	forgetDeviceToken,
+	watchDeviceTokenRefresh,
 } from '@/lib/notifications'
 import { connectChatSocket, disconnectChatSocket } from '@/lib/chat-socket'
 
@@ -68,6 +69,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
 	const pushTokenRef = useRef<string | null>(null)
+	const stopTokenWatchRef = useRef<(() => void) | null>(null)
+
+	// Register the current FCM token and keep re-registering whenever FCM
+	// rotates it — until logout. Needs an authenticated session (the device
+	// row is attached to the user server-side).
+	async function setupPush() {
+		pushTokenRef.current = await registerPushToken()
+		if (pushTokenRef.current && !stopTokenWatchRef.current) {
+			stopTokenWatchRef.current = watchDeviceTokenRefresh((token) => {
+				pushTokenRef.current = token
+			})
+		}
+	}
 
 	// Restore session on boot: read persisted tokens, prime the in-memory
 	// access token for apiFetch, then hydrate the user from /me. A dead
@@ -90,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					// login/registration — otherwise reopening an already-signed-in
 					// session (the common case) never registers a device token with
 					// the backend at all, and pushes silently never arrive.
-					pushTokenRef.current = await registerPushToken()
+					await setupPush()
 				}
 			} catch {
 				await tokenStore.clear()
@@ -116,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			const me = await getMe()
 			setUser(userFromMe(me))
 			connectChatSocket()
-			pushTokenRef.current = await registerPushToken()
+			await setupPush()
 		}
 
 		return { isNewUser: res.isNewUser, role: roleFromApi(res.role) }
@@ -129,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		const me = await getMe()
 		setUser(userFromMe(me))
 		connectChatSocket()
-		pushTokenRef.current = await registerPushToken()
+		await setupPush()
 	}
 
 	const refreshUser = async () => {
@@ -139,6 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 	const logout = async () => {
 		disconnectChatSocket()
+		stopTokenWatchRef.current?.()
+		stopTokenWatchRef.current = null
 		if (pushTokenRef.current) {
 			await forgetDeviceToken(pushTokenRef.current)
 			pushTokenRef.current = null

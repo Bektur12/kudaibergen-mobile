@@ -37,6 +37,24 @@ import {
 } from '@/lib/chat-api';
 import { subscribeToChat, subscribeToTyping, subscribeToPresence, sendTyping } from '@/lib/chat-socket';
 
+type MediaKind = 'PHOTO' | 'VOICE' | 'VIDEO';
+
+// Mirrors the backend's upload limits (application.yml) — over these it answers 413 FILE_TOO_LARGE.
+const MEDIA_LIMIT_MB: Record<MediaKind, number> = { PHOTO: 10, VOICE: 15, VIDEO: 100 };
+const MEDIA_LIMIT_BYTES: Record<MediaKind, number> = {
+  PHOTO: MEDIA_LIMIT_MB.PHOTO * 1024 * 1024,
+  VOICE: MEDIA_LIMIT_MB.VOICE * 1024 * 1024,
+  VIDEO: MEDIA_LIMIT_MB.VIDEO * 1024 * 1024,
+};
+
+function mediaErrorMessage(err: unknown, kind: MediaKind): string {
+  if (err instanceof ApiError && (err.status === 413 || err.code === 'FILE_TOO_LARGE')) {
+    return `Файл слишком большой — максимум ${MEDIA_LIMIT_MB[kind]} МБ`;
+  }
+  if (err instanceof Error) return err.message;
+  return 'Попробуйте ещё раз';
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -365,7 +383,7 @@ export default function ChatDetailScreen({
   // Live delivery over the shared STOMP socket (see chat-socket.ts) — REST
   // above only fetches history; this appends whatever arrives while the
   // screen is open. Dedupe by id: our own sends already land locally via
-  // `send`/`attachPhoto`, and the broker echoes them back on this topic too.
+  // `send`/`attachMedia`, and the broker echoes them back on this topic too.
   useEffect(() => {
     const unsubscribe = subscribeToChat(chatId, (message) => {
       addMessage(message);
@@ -494,39 +512,50 @@ export default function ChatDetailScreen({
     return new Blob([blob], { type });
   };
 
-  const attachPhoto = async () => {
+  const attachMedia = async () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Нужен доступ к галерее', 'Разрешите доступ к фото в настройках');
+        Alert.alert('Нужен доступ к галерее', 'Разрешите доступ к фото и видео в настройках');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ['images', 'videos'],
         quality: 0.8,
       });
       if (result.canceled || !result.assets[0]) return;
 
       const asset = result.assets[0];
+      const isVideo = asset.type === 'video';
+      const kind = isVideo ? 'VIDEO' : 'PHOTO';
+      const label = isVideo ? 'видео' : 'фото';
+
+      // Fail fast on the client instead of uploading 100+ MB just to get a 413.
+      if (asset.fileSize && asset.fileSize > MEDIA_LIMIT_BYTES[kind]) {
+        Alert.alert('Файл слишком большой', `Максимальный размер ${label} — ${MEDIA_LIMIT_MB[kind]} МБ`);
+        return;
+      }
+
       setSending(true);
       try {
         const form = new FormData();
         form.append(
           'file',
-          await toFilePart(asset.uri, asset.mimeType ?? 'image/jpeg'),
-          asset.fileName ?? 'photo.jpg'
+          await toFilePart(asset.uri, asset.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg')),
+          asset.fileName ?? (isVideo ? 'video.mp4' : 'photo.jpg')
         );
-        form.append('type', 'PHOTO');
+        form.append('type', kind);
+        // expo-image-picker reports duration in milliseconds, the backend wants seconds.
+        if (isVideo && asset.duration != null) {
+          form.append('durationSeconds', String(Math.round(asset.duration / 1000)));
+        }
         const message = await sendMediaMessage(chatId, form);
         addMessage(message);
       } catch (err) {
         // Show the real message for *any* error, not just ApiError — a plain
         // network/runtime failure here was getting hidden behind a generic
         // "попробуйте ещё раз" with no way to tell what actually went wrong.
-        Alert.alert(
-          'Не удалось отправить фото',
-          err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Попробуйте ещё раз'
-        );
+        Alert.alert(`Не удалось отправить ${label}`, mediaErrorMessage(err, kind));
       } finally {
         setSending(false);
       }
@@ -534,7 +563,7 @@ export default function ChatDetailScreen({
       // Permission request or the picker itself threw — this was previously
       // uncaught, so the tap on 📎 just did nothing with zero visible error
       // and (per the backend log) no request ever left the device.
-      Alert.alert('Не удалось выбрать фото', err instanceof Error ? err.message : 'Попробуйте ещё раз');
+      Alert.alert('Не удалось выбрать файл', err instanceof Error ? err.message : 'Попробуйте ещё раз');
     }
   };
 
@@ -586,7 +615,7 @@ export default function ChatDetailScreen({
       const message = await sendMediaMessage(chatId, form);
       addMessage(message);
     } catch (err) {
-      Alert.alert('Не удалось отправить голосовое', err instanceof ApiError ? err.message : 'Попробуйте ещё раз');
+      Alert.alert('Не удалось отправить голосовое', mediaErrorMessage(err, 'VOICE'));
     } finally {
       setSending(false);
     }
@@ -648,7 +677,7 @@ export default function ChatDetailScreen({
         </View>
       ) : (
         <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.iconButton} onPress={attachPhoto} disabled={sending}>
+          <TouchableOpacity style={styles.iconButton} onPress={attachMedia} disabled={sending}>
             <Text style={{ fontSize: 20 }}>📎</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={startRecording} disabled={sending}>
