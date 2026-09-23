@@ -1,55 +1,27 @@
-import React, { useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
-import { C, T, Badge, BackBtn } from '@/components/ui';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import { C, T, BackBtn } from '@/components/ui';
+import { PART_CATEGORIES } from '@/data/parts';
+import { listStores, type ApiPartCategory, type StoreSummary } from '@/lib/store-api';
 
-const RESULTS = [
-  {
-    id: 1,
-    icon: '🔩',
-    title: 'Тормозные диски',
-    desc: 'Бренд: Brembo',
-    price: 850,
-    currency: 'сом',
-    rating: 4.9,
-    views: 234,
-    color: '#E5A860',
-  },
-  {
-    id: 2,
-    icon: '⚙️',
-    title: 'Фильтр масла',
-    desc: 'Для Toyota, Honda',
-    price: 450,
-    currency: 'сом',
-    rating: 4.7,
-    views: 156,
-    color: '#6B5B95',
-  },
-  {
-    id: 3,
-    icon: '🛞',
-    title: 'Амортизаторы',
-    desc: 'Комплект из 4 шт',
-    price: 12500,
-    currency: 'сом',
-    rating: 4.8,
-    views: 412,
-    color: '#FF6B6B',
-  },
-  {
-    id: 4,
-    icon: '💨',
-    title: 'Воздушный фильтр',
-    desc: 'Оригинальный',
-    price: 280,
-    currency: 'сом',
-    rating: 4.6,
-    views: 89,
-    color: '#26C485',
-  },
+const BUSINESS_TYPE_LABELS: Record<string, string> = {
+  parts: 'Магазин запчастей',
+  tires: 'Шиномонтаж',
+  oils: 'Масла и жидкости',
+  accessories: 'Аксессуары',
+  sto: 'СТО',
+  carwash: 'Автомойка',
+};
+
+// Same lowercase ids as PART_CATEGORIES, backend wants the uppercase form.
+const CATEGORY_CHIPS: { value: ApiPartCategory | null; label: string }[] = [
+  { value: null, label: 'Все' },
+  ...PART_CATEGORIES.map((cat) => ({
+    value: cat.id.toUpperCase() as ApiPartCategory,
+    label: cat.label,
+  })),
 ];
-
-const CATEGORIES = ['Все', '🚗 Авто', '🔧 Запчасти', '🏥 Услуги'];
 
 const styles = StyleSheet.create({
   container: {
@@ -114,27 +86,6 @@ const styles = StyleSheet.create({
   categoryTextActive: {
     color: '#FFFFFF',
   },
-  filterBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: C.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  filterButton: {
-    flex: 1,
-    backgroundColor: C.bg,
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  filterButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: C.textSecondary,
-  },
   resultsContainer: {
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -148,12 +99,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   resultImage: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#E5A860',
+    width: 56,
+    height: 56,
+    backgroundColor: C.primary,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  resultImageText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   resultContent: {
     flex: 1,
@@ -168,15 +124,21 @@ const styles = StyleSheet.create({
     color: C.textSecondary,
     marginVertical: 2,
   },
-  resultPrice: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: C.primary,
-    marginVertical: 6,
-  },
   resultFooter: {
     flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
     gap: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: C.textTertiary,
   },
 });
 
@@ -185,8 +147,35 @@ export default function SearchScreen({
 }: {
   onNavigate: (tab: string) => void;
 }) {
-  const [searchText, setSearchText] = useState('Тормозные диски');
-  const [activeCategory, setActiveCategory] = useState('Все');
+  const router = useRouter();
+  const [searchText, setSearchText] = useState('');
+  const [activeCategory, setActiveCategory] = useState<ApiPartCategory | null>(null);
+  const [stores, setStores] = useState<StoreSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await listStores({ category: activeCategory ?? undefined, size: 50 });
+        if (!cancelled) setStores(res.content);
+      } catch {
+        // keep whatever was on screen — a transient network hiccup shouldn't blank the results
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCategory]);
+
+  // No free-text search endpoint on the backend yet — filter what we already
+  // fetched by name client-side instead of hitting the network per keystroke.
+  const query = searchText.trim().toLowerCase();
+  const results = query ? stores.filter((s) => s.name.toLowerCase().includes(query)) : stores;
 
   return (
     <View style={styles.container}>
@@ -205,7 +194,7 @@ export default function SearchScreen({
           <TextInput
             value={searchText}
             onChangeText={setSearchText}
-            placeholder="Введите что ищете..."
+            placeholder="Название магазина..."
             placeholderTextColor={C.textTertiary}
             style={{
               flex: 1,
@@ -214,76 +203,84 @@ export default function SearchScreen({
               fontWeight: '500',
             }}
           />
-          <TouchableOpacity>
-            <Text>✕</Text>
-          </TouchableOpacity>
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText('')}>
+              <Text>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
       {/* Categories */}
       <View style={styles.categoriesContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-          {CATEGORIES.map((cat) => (
+          {CATEGORY_CHIPS.map((cat) => (
             <TouchableOpacity
-              key={cat}
+              key={cat.label}
               style={[
                 styles.categoryButton,
-                activeCategory === cat && styles.categoryButtonActive,
+                activeCategory === cat.value && styles.categoryButtonActive,
               ]}
-              onPress={() => setActiveCategory(cat)}
+              onPress={() => setActiveCategory(cat.value)}
             >
               <Text
                 style={[
                   styles.categoryText,
-                  activeCategory === cat && styles.categoryTextActive,
+                  activeCategory === cat.value && styles.categoryTextActive,
                 ]}
               >
-                {cat}
+                {cat.label}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
-      {/* Filter Bar */}
-      <View style={styles.filterBar}>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>🔽 Цена</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>📊 Сортировка</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>⚙️ Еще</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Results */}
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.resultsContainer}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: C.textTertiary, textTransform: 'uppercase', marginBottom: 12 }}>
-            Результаты поиска ({RESULTS.length})
-          </Text>
-          {RESULTS.map((result) => (
-            <TouchableOpacity key={result.id} style={styles.resultCard}>
-              <View style={[styles.resultImage, { backgroundColor: result.color }]}>
-                <Text style={{ fontSize: 32 }}>{result.icon}</Text>
-              </View>
-              <View style={styles.resultContent}>
-                <Text style={styles.resultTitle}>{result.title}</Text>
-                <Text style={styles.resultDesc}>{result.desc}</Text>
-                <Text style={styles.resultPrice}>
-                  {result.price} {result.currency}
-                </Text>
-                <View style={styles.resultFooter}>
-                  <Text style={{ fontSize: 11, color: C.textTertiary }}>⭐ {result.rating}</Text>
-                  <Text style={{ fontSize: 11, color: C.textTertiary }}>👁️ {result.views}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+      {loading ? (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator color={C.primary} />
         </View>
-      </ScrollView>
+      ) : results.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Ничего не найдено</Text>
+        </View>
+      ) : (
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          <View style={styles.resultsContainer}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: C.textTertiary, textTransform: 'uppercase', marginBottom: 12 }}>
+              Результаты поиска ({results.length})
+            </Text>
+            {results.map((store) => (
+              <TouchableOpacity
+                key={store.id}
+                style={styles.resultCard}
+                onPress={() => router.push(`/(buyer)/store/${store.id}` as any)}
+              >
+                <View style={styles.resultImage}>
+                  <Text style={styles.resultImageText}>{store.name.charAt(0)}</Text>
+                </View>
+                <View style={styles.resultContent}>
+                  <Text style={styles.resultTitle}>{store.name}</Text>
+                  <Text style={styles.resultDesc}>
+                    {BUSINESS_TYPE_LABELS[store.businessType] ?? store.businessType}
+                    {store.cities.length > 0 ? ` · ${store.cities.join(', ')}` : ''}
+                  </Text>
+                  <View style={styles.resultFooter}>
+                    <Text style={{ fontSize: 11, color: C.textTertiary }}>⭐ {store.rating.toFixed(1)}</Text>
+                    <Text style={{ fontSize: 11, color: C.textTertiary }}>
+                      {store.reviewCount} отзывов
+                    </Text>
+                    <Text style={{ fontSize: 11, color: C.textTertiary }}>
+                      {store.totalDeals} сделок
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
