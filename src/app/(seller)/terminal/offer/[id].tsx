@@ -65,7 +65,7 @@ export default function OfferScreen() {
 							{ color: key === '←' ? colors.accent : colors.text },
 						]}
 					>
-						{key}
+						{key === '←' ? '⌫' : key}
 					</Text>
 				</TouchableOpacity>
 			))}

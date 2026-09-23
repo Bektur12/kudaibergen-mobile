@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { C, ScreenHeader } from '@/components/ui';
+import { Map as MapIcon, MapPin, Wrench, Star } from 'lucide-react-native';
 import { listStores, type StoreSummary, type ApiPartCategory } from '@/lib/store-api';
 
 // The map surface itself is still a placeholder (Yandex Maps integration is
@@ -197,7 +198,7 @@ export default function MapScreen() {
       {/* Map Placeholder */}
       <View style={styles.mapContainer}>
         <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapIcon}>🗺️</Text>
+          <MapIcon size={40} color={C.textTertiary} />
           <Text style={styles.mapText}>Карта (Phase 2)</Text>
           <Text style={styles.mapSubtext}>
             Интеграция Yandex Maps в разработке
@@ -217,7 +218,7 @@ export default function MapScreen() {
             </View>
           ) : stores.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📍</Text>
+              <MapPin size={32} color={C.textTertiary} />
               <Text style={styles.emptyText}>По этому фильтру ничего не найдено</Text>
             </View>
           ) : (
@@ -228,9 +229,9 @@ export default function MapScreen() {
                 onPress={() => router.push(`/(buyer)/store/${store.id}` as never)}
               >
                 <View style={styles.pinHeader}>
-                  <Text style={styles.pinIcon}>🔧</Text>
+                  <Wrench size={18} color={C.primary} />
                   <Text style={styles.pinName}>{store.name}</Text>
-                  <Text style={styles.pinRating}>⭐ {store.rating.toFixed(1)}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}><Star size={13} color="#F5A524" fill="#F5A524" /><Text style={styles.pinRating}>{store.rating.toFixed(1)}</Text></View>
                 </View>
                 <Text style={styles.pinType}>{store.cities.join(', ')}</Text>
               </TouchableOpacity>

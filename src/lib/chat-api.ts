@@ -25,6 +25,8 @@ export interface ChatMessage {
 	body: string
 	mediaUrl: string | null
 	mimeType: string | null
+	/** VOICE only: ~30-40 peak levels 0..1 for the waveform. Absent on old messages / until the backend supports it. */
+	waveform?: number[] | null
 	durationSeconds: number | null
 	readAt: string | null
 	createdAt: string
@@ -60,8 +62,12 @@ export function markChatRead(chatId: number) {
 	return apiFetch<void>(`/api/v1/chats/${chatId}/read`, { method: 'POST' })
 }
 
-/** mediaUrl comes back as a relative path (`/media/uuid.jpg`) — needs the backend origin to be loadable. */
+/**
+ * mediaUrl is either a relative path (`/media/uuid.jpg`, dev/local disk — needs the
+ * backend origin) or an absolute presigned S3 URL (prod — use as is; it expires
+ * after ~1h, so on a 403 refetch the messages instead of caching it).
+ */
 export function resolveMediaUrl(mediaUrl: string | null): string | null {
 	if (!mediaUrl) return null
-	return `${API_BASE_URL}${mediaUrl}`
+	return mediaUrl.startsWith('/') ? `${API_BASE_URL}${mediaUrl}` : mediaUrl
 }

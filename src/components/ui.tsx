@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Star, Search, Bell, ArrowLeft, ChevronRight } from 'lucide-react-native';
 
 // Neutral base + one accent. Colour carries meaning, never decoration:
 // orange = the action you should take, red = urgent, green = in stock.
@@ -20,10 +21,10 @@ export const C = {
   textPrimary: '#1A1A1A',  // 15.3:1 on white
   textSecondary: '#4A4A4A',// 8.9:1 — readable at arm's length
   textTertiary: '#6B6B6B', // 5.3:1 — passes AA, unlike the old #999
-  bg: '#F2F2F2',
+  bg: '#F4F4F6',
   surface: '#FFFFFF',
-  surfaceAlt: '#F7F7F7',
-  border: '#DDDDDD',
+  surfaceAlt: '#F9F9FB',
+  border: '#E7E7EB',
   primaryTint: '#FFF1E8',
   errorTint: '#FDECEC',
   successTint: '#EBF7EE',
@@ -43,14 +44,15 @@ export const T = {
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
+    borderRadius: 999,
+    paddingHorizontal: 9,
     paddingVertical: 3,
+    alignSelf: 'flex-start',
     fontWeight: '600',
     fontSize: 11,
   },
   button: {
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 20,
     fontWeight: '700',
     fontSize: 15,
@@ -61,7 +63,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: C.surface,
     borderRadius: 16,
-    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E7E7EB',
   },
 });
 
@@ -135,6 +138,7 @@ export function Btn({
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
+      activeOpacity={0.8}
       style={[
         styles.button,
         { height: heights[size], width: full ? '100%' : 'auto' },
@@ -143,7 +147,7 @@ export function Btn({
         style,
       ]}
     >
-      <Text style={{ color: textColors[variant], fontWeight: '700', fontSize: 15 }}>
+      <Text style={{ color: textColors[variant], fontWeight: '600', fontSize: 16, letterSpacing: 0.1 }}>
         {children}
       </Text>
     </TouchableOpacity>
@@ -205,7 +209,7 @@ export function Card({
   style?: ViewStyle;
 }) {
   return (
-    <View style={[styles.card, { shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 6 }, style]}>
+    <View style={[styles.card, { shadowColor: '#101828', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 }, style]}>
       {children}
     </View>
   );
@@ -215,8 +219,9 @@ export function Card({
 export function Stars({ rating, count }: { rating: number; count?: number }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+      <Star size={13} color="#F5A524" fill="#F5A524" />
       <Text style={{ fontWeight: '600', fontSize: 13, color: C.textPrimary }}>
-        ⭐ {rating.toFixed(1)}
+        {rating.toFixed(1)}
       </Text>
       {count !== undefined && (
         <Text style={{ fontSize: 12, color: C.textTertiary }}>({count})</Text>
@@ -241,9 +246,7 @@ export function Avatar({
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: `${color}22`,
-        borderWidth: 1.5,
-        borderColor: `${color}55`,
+        backgroundColor: `${color}1F`,
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -263,11 +266,7 @@ export function Avatar({
 
 // Search Icon
 export function SearchIcon({ size = 18, color = C.textTertiary }: { size?: number; color?: string }) {
-  return (
-    <Text style={{ fontSize: size * 1.2, color }}>
-      🔍
-    </Text>
-  );
+  return <Search size={size} color={color} />;
 }
 
 // Screen Header
@@ -344,7 +343,7 @@ export function NotifBell({ count }: { count: number }) {
           justifyContent: 'center',
         }}
       >
-        <Text style={{ fontSize: 20 }}>🔔</Text>
+        <Bell size={20} color={C.textPrimary} />
       </TouchableOpacity>
       {count > 0 && (
         <View
@@ -373,7 +372,7 @@ export function NotifBell({ count }: { count: number }) {
 export function BackBtn({ onBack }: { onBack?: () => void }) {
   return (
     <TouchableOpacity onPress={onBack} style={{ padding: 4 }}>
-      <Text style={{ fontSize: 24, color: C.primary }}>←</Text>
+      <ArrowLeft size={24} color={C.textPrimary} />
     </TouchableOpacity>
   );
 }
@@ -406,15 +405,15 @@ export function ListRow({
         style,
       ]}
     >
-      {icon && (
-        <Text style={{ fontSize: 20, width: 28, textAlign: 'center' }}>
-          {icon}
-        </Text>
+      {icon != null && (
+        <View style={{ width: 28, alignItems: 'center' }}>
+          {typeof icon === 'string' ? <Text style={{ fontSize: 20 }}>{icon}</Text> : icon}
+        </View>
       )}
       <Text style={[T.body, { flex: 1, color: C.textPrimary }]}>
         {label}
       </Text>
-      {rightSlot ?? <Text style={{ fontSize: 16, color: C.border }}>›</Text>}
+      {rightSlot ?? <ChevronRight size={18} color={C.textTertiary} />}
     </TouchableOpacity>
   );
 }
