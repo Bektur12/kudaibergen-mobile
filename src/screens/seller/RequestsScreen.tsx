@@ -458,7 +458,36 @@ export default function RequestsScreen() {
       ) : requests.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="file-tray-outline" size={44} color={colors.textTertiary} />
-          <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Нет запросов по этому фильтру</Text>
+          {filter === 'ALL' ? (
+            <>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                Пока нет запросов для вашего магазина
+              </Text>
+              {/* The #1 reason a seller sees nothing here: no categories set,
+                  so the backend has nothing to match their store against. */}
+              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
+                Запросы приходят по категориям товаров. Проверьте, что вы выбрали,
+                что продаёте — иначе мы не знаем, что вам показывать.
+              </Text>
+              <TouchableOpacity
+                style={[styles.emptyAction, { backgroundColor: colors.primary }]}
+                onPress={() => router.push('/(seller)/(tabs)/inventory' as never)}
+              >
+                <Text style={styles.emptyActionText}>Выбрать категории товаров</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                {filter === 'URGENT' ? 'Нет срочных запросов' : 'Вы ответили на все запросы'}
+              </Text>
+              <TouchableOpacity onPress={() => setFilter('ALL')}>
+                <Text style={[styles.emptyActionLink, { color: colors.primary }]}>
+                  Показать все запросы
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       ) : (
         <FlatList
@@ -565,8 +594,12 @@ const styles = StyleSheet.create({
   actionButtons: { flexDirection: 'row', gap: 8, marginTop: 8 },
   actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 10, gap: 6 },
   actionButtonText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  emptyText: { fontSize: 16 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8, paddingHorizontal: 32 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  emptyAction: { marginTop: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10 },
+  emptyActionText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  emptyActionLink: { fontSize: 14, fontWeight: '700', marginTop: 4 },
   quickChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6, marginBottom: 4 },
   quickChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 20, borderWidth: 1 },
   quickChipText: { fontSize: 15, fontWeight: '600' },

@@ -93,9 +93,14 @@ export default function HomeScreen({
           {loadingStores ? (
             <ActivityIndicator color={colors.textTertiary} style={{ marginVertical: 16 }} />
           ) : stores.length === 0 ? (
-            <Text style={[styles.footerText, { color: colors.textTertiary }]}>
-              Пока нет магазинов
-            </Text>
+            <View style={{ gap: 4 }}>
+              <Text style={[styles.storeName, { color: colors.textPrimary }]}>
+                Магазины ещё не подключены
+              </Text>
+              <Text style={[styles.footerText, { color: colors.textTertiary }]}>
+                Создайте запрос — мы отправим его продавцам, как только они появятся
+              </Text>
+            </View>
           ) : (
             stores.map((store) => (
               <TouchableOpacity
@@ -122,6 +127,9 @@ export default function HomeScreen({
                     </Text>
                     {store.verificationStatus === 'TRUSTED' && (
                       <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                    )}
+                    {store.verificationStatus === 'VERIFIED' && (
+                      <Ionicons name="checkmark-circle-outline" size={18} color={colors.primary} />
                     )}
                   </View>
                   <Text style={[styles.storeType, { color: colors.textSecondary }]}>

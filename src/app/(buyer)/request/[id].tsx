@@ -183,7 +183,16 @@ export default function RequestDetailScreen() {
 				<Text style={[styles.sectionTitle, { color: colors.text }]}>Предложения</Text>
 
 				{request.offers.length === 0 ? (
-					<Text style={{ color: colors.textSecondary }}>Пока никто не ответил</Text>
+					<Card variant="outlined" style={styles.card}>
+						<Text style={[styles.emptyOffersTitle, { color: colors.text }]}>
+							{isActive ? 'Ждём ответы продавцов' : 'Ответов не было'}
+						</Text>
+						<Text style={[styles.emptyOffersHint, { color: colors.textSecondary }]}>
+							{isActive
+								? 'Продавцы видят ваш запрос и ответят прямо в чат — уведомление придёт сразу.'
+								: 'Запрос больше не активен. Создайте новый, чтобы снова разослать его продавцам.'}
+						</Text>
+					</Card>
 				) : (
 					request.offers.map((offer) => (
 						<Card key={offer.id} variant="outlined" style={styles.offerCard}>
@@ -252,6 +261,15 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		fontWeight: '700',
 		color: '#fff',
+	},
+	emptyOffersTitle: {
+		fontSize: 15,
+		fontWeight: '700',
+		marginBottom: Spacing.two,
+	},
+	emptyOffersHint: {
+		fontSize: 13,
+		lineHeight: 19,
 	},
 	titleRow: {
 		flexDirection: 'row',

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { C, T, BackBtn } from '@/components/ui';
+import { C, T, Badge, BackBtn } from '@/components/ui';
 import { PART_CATEGORIES } from '@/data/parts';
 import { listStores, type ApiPartCategory, type StoreSummary } from '@/lib/store-api';
 
@@ -12,6 +12,15 @@ const BUSINESS_TYPE_LABELS: Record<string, string> = {
   accessories: 'Аксессуары',
   sto: 'СТО',
   carwash: 'Автомойка',
+};
+
+// Trust signal — the main thing a buyer decides on before tapping into a
+// store, so it belongs on the list card, not just the store's own page.
+// NEW gets nothing rather than a "новый" label: an honest absence reads
+// better than a badge that looks like a warning.
+const TRUST_BADGE: Record<string, { label: string; variant: 'success' | 'accent' } | undefined> = {
+  TRUSTED: { label: '✓ Партнёр', variant: 'success' },
+  VERIFIED: { label: '✓ Проверен', variant: 'accent' },
 };
 
 // Same lowercase ids as PART_CATEGORIES, backend wants the uppercase form.
@@ -114,6 +123,12 @@ const styles = StyleSheet.create({
   resultContent: {
     flex: 1,
   },
+  resultTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
   resultTitle: {
     fontSize: 14,
     fontWeight: '700',
@@ -136,9 +151,30 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     gap: 8,
   },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.textPrimary,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
   emptyText: {
-    fontSize: 14,
+    fontSize: 13,
     color: C.textTertiary,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyAction: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: C.primary,
+  },
+  emptyActionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
 
@@ -176,6 +212,27 @@ export default function SearchScreen({
   // fetched by name client-side instead of hitting the network per keystroke.
   const query = searchText.trim().toLowerCase();
   const results = query ? stores.filter((s) => s.name.toLowerCase().includes(query)) : stores;
+
+  // An empty list means three different things — say which one it is instead
+  // of a flat "ничего не найдено" that leaves the buyer at a dead end.
+  const activeCategoryLabel = CATEGORY_CHIPS.find((c) => c.value === activeCategory)?.label;
+  const emptyState = query
+    ? {
+        title: `Магазин «${searchText.trim()}» не найден`,
+        hint: 'Проверьте написание или посмотрите все магазины',
+        canReset: true,
+      }
+    : activeCategory
+      ? {
+          title: `Пока нет продавцов в категории «${activeCategoryLabel}»`,
+          hint: 'Мы только начали подключать магазины — попробуйте другую категорию',
+          canReset: true,
+        }
+      : {
+          title: 'Магазины ещё не подключены',
+          hint: 'Скоро здесь появятся продавцы с Кудайбергена',
+          canReset: false,
+        };
 
   return (
     <View style={styles.container}>
@@ -243,7 +300,19 @@ export default function SearchScreen({
         </View>
       ) : results.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Ничего не найдено</Text>
+          <Text style={styles.emptyTitle}>{emptyState.title}</Text>
+          <Text style={styles.emptyText}>{emptyState.hint}</Text>
+          {emptyState.canReset && (
+            <TouchableOpacity
+              style={styles.emptyAction}
+              onPress={() => {
+                setSearchText('');
+                setActiveCategory(null);
+              }}
+            >
+              <Text style={styles.emptyActionText}>Показать все магазины</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -261,7 +330,14 @@ export default function SearchScreen({
                   <Text style={styles.resultImageText}>{store.name.charAt(0)}</Text>
                 </View>
                 <View style={styles.resultContent}>
-                  <Text style={styles.resultTitle}>{store.name}</Text>
+                  <View style={styles.resultTitleRow}>
+                    <Text style={styles.resultTitle}>{store.name}</Text>
+                    {TRUST_BADGE[store.verificationStatus] && (
+                      <Badge variant={TRUST_BADGE[store.verificationStatus]!.variant}>
+                        {TRUST_BADGE[store.verificationStatus]!.label}
+                      </Badge>
+                    )}
+                  </View>
                   <Text style={styles.resultDesc}>
                     {BUSINESS_TYPE_LABELS[store.businessType] ?? store.businessType}
                     {store.cities.length > 0 ? ` · ${store.cities.join(', ')}` : ''}
