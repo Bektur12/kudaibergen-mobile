@@ -98,7 +98,7 @@ export default function QuickRequestPartScreen() {
       )
       router.replace({
         pathname: '/(buyer)/request/[id]',
-        params: { id: String(result.id) },
+        params: { id: String(result.id), sellersMatched: String(result.sellersMatched) },
       })
     } catch (err) {
       Alert.alert(

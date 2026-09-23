@@ -37,7 +37,7 @@ function formatMoney(amount: number, currency: string) {
 }
 
 export default function RequestDetailScreen() {
-	const { id } = useLocalSearchParams<{ id: string }>()
+	const { id, sellersMatched } = useLocalSearchParams<{ id: string; sellersMatched?: string }>()
 	const colorScheme = useColorScheme() ?? 'dark'
 	const isDark = colorScheme === 'dark'
 	const colors = isDark ? Colors.dark : Colors.light
@@ -123,6 +123,16 @@ export default function RequestDetailScreen() {
 			<Header title="Детали запроса" onBack={() => router.back()} />
 
 			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+				{sellersMatched != null && (
+					<View style={[styles.matchedBanner, { backgroundColor: colors.accent }]}>
+						<Text style={styles.matchedBannerText}>
+							{Number(sellersMatched) > 0
+								? `Запрос увидят ${sellersMatched} продавцов в вашем городе`
+								: 'Запрос создан — ждём, когда появятся подходящие продавцы'}
+						</Text>
+					</View>
+				)}
+
 				<Card variant="outlined" style={styles.card}>
 					<View style={styles.titleRow}>
 						<Text style={[styles.carModel, { color: colors.text }]}>
@@ -231,6 +241,17 @@ const styles = StyleSheet.create({
 	},
 	card: {
 		marginBottom: Spacing.four,
+	},
+	matchedBanner: {
+		borderRadius: 12,
+		paddingHorizontal: Spacing.four,
+		paddingVertical: Spacing.three,
+		marginBottom: Spacing.four,
+	},
+	matchedBannerText: {
+		fontSize: 14,
+		fontWeight: '700',
+		color: '#fff',
 	},
 	titleRow: {
 		flexDirection: 'row',
