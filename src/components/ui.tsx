@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CardShadow, Layout } from '@/constants/theme';
 
 // Neutral base + one accent. Colour carries meaning, never decoration:
 // orange = the action you should take, red = urgent, green = in stock.
@@ -60,7 +61,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: C.surface,
-    borderRadius: 16,
+    borderRadius: Layout.cardRadius,
     overflow: 'hidden',
   },
 });
@@ -204,11 +205,7 @@ export function Card({
   children: React.ReactNode;
   style?: ViewStyle;
 }) {
-  return (
-    <View style={[styles.card, { shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 6 }, style]}>
-      {children}
-    </View>
-  );
+  return <View style={[styles.card, CardShadow, style]}>{children}</View>;
 }
 
 // Stars/Rating

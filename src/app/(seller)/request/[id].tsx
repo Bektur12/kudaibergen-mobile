@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, useColorScheme } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Colors, Spacing, Typography } from '@/constants/theme'
+import { Colors, Spacing, Typography, Layout } from '@/constants/theme'
 import { Header } from '@/components/ui/Header'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	contentPadding: {
-		padding: Spacing.four,
+		padding: Layout.gutter,
 		paddingBottom: Spacing.six,
 	},
 	carModel: {

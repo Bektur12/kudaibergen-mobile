@@ -6,7 +6,7 @@ import {
 	ViewStyle,
 	TouchableOpacity,
 } from 'react-native'
-import { Colors, Spacing, BorderRadius, ShadowSize } from '@/constants/theme'
+import { Colors, Spacing, Layout, ShadowSize } from '@/constants/theme'
 
 interface CardProps {
 	children: React.ReactNode
@@ -69,7 +69,7 @@ export function Card({
 
 const styles = StyleSheet.create({
 	card: {
-		borderRadius: BorderRadius.large,
+		borderRadius: Layout.cardRadius,
 		padding: Spacing.three,
 		overflow: 'hidden',
 	},

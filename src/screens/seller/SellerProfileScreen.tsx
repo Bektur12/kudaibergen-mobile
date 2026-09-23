@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { C, Stars, Divider, ListRow, ScreenHeader } from '@/components/ui';
+import { Layout } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/auth';
 import { ApiError } from '@/lib/api';
@@ -67,7 +68,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: C.surface,
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.gutter,
     paddingVertical: 16,
   },
   shopInfo: {
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     backgroundColor: C.surface,
     marginTop: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.gutter,
     paddingVertical: 12,
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -148,7 +149,7 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: C.surface,
     marginTop: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.gutter,
     paddingVertical: 16,
   },
   sectionHeaderRow: {
@@ -578,7 +579,7 @@ export default function SellerProfileScreen() {
 
         {/* Menu */}
         <View style={styles.menuSection}>
-          <Text style={[styles.sectionTitle, { paddingHorizontal: 20, paddingTop: 16, marginBottom: 0 }]}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: Layout.gutter, paddingTop: 16, marginBottom: 0 }]}>
             Настройки магазина
           </Text>
           {MENU_ITEMS.map((item) => (

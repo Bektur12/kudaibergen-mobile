@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Header } from '@/components/ui/Header'
-import { Colors, Spacing, Typography } from '@/constants/theme'
+import { Colors, Spacing, Typography, Layout } from '@/constants/theme'
 import { getPartCategoryInfo } from '@/data/parts'
 import { ApiError } from '@/lib/api'
 import {
@@ -246,14 +246,14 @@ const styles = StyleSheet.create({
 	},
 	content: {
 		flex: 1,
-		padding: Spacing.four,
+		padding: Layout.gutter,
 	},
 	card: {
 		marginBottom: Spacing.four,
 	},
 	matchedBanner: {
 		borderRadius: 12,
-		paddingHorizontal: Spacing.four,
+		paddingHorizontal: Layout.gutter,
 		paddingVertical: Spacing.three,
 		marginBottom: Spacing.four,
 	},

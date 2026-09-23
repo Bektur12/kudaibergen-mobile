@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useColorScheme } from 'react-native'
 import { useRouter } from 'expo-router'
-import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme'
+import { Colors, Spacing, Typography, BorderRadius, Layout } from '@/constants/theme'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		paddingHorizontal: Spacing.four,
+		paddingHorizontal: Layout.gutter,
 		paddingVertical: Spacing.three,
 		borderBottomWidth: 1,
 	},
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
 	},
 	content: {
 		flex: 1,
-		padding: Spacing.four,
+		padding: Layout.gutter,
 	},
 	vehicleCard: {
 		marginBottom: Spacing.four,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
 		fontSize: 12,
 	},
 	footer: {
-		paddingHorizontal: Spacing.four,
+		paddingHorizontal: Layout.gutter,
 		paddingVertical: Spacing.three,
 		borderTopWidth: 1,
 	},

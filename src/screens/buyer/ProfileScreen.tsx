@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { C, Avatar, Stars, ListRow } from '@/components/ui';
+import { Layout } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/auth';
 import { updateMe } from '@/lib/auth-api';
@@ -45,7 +46,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: C.surface,
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.gutter,
     paddingVertical: 16,
   },
   headerTitle: {
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
   vehiclesSection: {
     backgroundColor: C.surface,
     marginTop: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.gutter,
     paddingVertical: 16,
   },
   sectionTitle: {
@@ -392,7 +393,7 @@ export default function ProfileScreen() {
 
         {/* Menu */}
         <View style={styles.menuSection}>
-          <Text style={[styles.sectionTitle, { paddingHorizontal: 20, paddingTop: 16 }]}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: Layout.gutter, paddingTop: 16 }]}>
             Настройки
           </Text>
           {MENU_ITEMS.map((item) => (

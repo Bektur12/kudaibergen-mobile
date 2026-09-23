@@ -29,47 +29,43 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light;
 
-// Typography based on design document
+// Must stay in step with the `T` scale in components/ui.tsx — the two used to
+// disagree (heading 24 here vs 18 there, price 34 vs 26), so a screen's title
+// changed size depending on which system it happened to import.
+// Sized for drivers aged 35-60 reading a phone at arm's length: nothing below 13px.
 export const Typography = {
-  // Price: 34px, 800 weight, -0.02em letter-spacing
   price: {
-    fontSize: 34,
+    fontSize: 26,
     fontWeight: 800,
-    lineHeight: 40,
+    lineHeight: 34,
     letterSpacing: -0.02,
   },
-  // Heading: 24px, 700 weight
   heading: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 700,
-    lineHeight: 32,
+    lineHeight: 26,
   },
-  // Button: 17px, 700 weight
   button: {
     fontSize: 17,
     fontWeight: 700,
     lineHeight: 24,
   },
-  // Body: 16px, 500 weight
   body: {
     fontSize: 16,
-    fontWeight: 500,
+    fontWeight: 400,
     lineHeight: 24,
   },
-  // Secondary: 14px, 500 weight
   secondary: {
-    fontSize: 14,
-    fontWeight: 500,
-    lineHeight: 20,
+    fontSize: 15,
+    fontWeight: 400,
+    lineHeight: 22,
   },
-  // Label: 12px, 700 weight, uppercase
   label: {
-    fontSize: 12,
-    fontWeight: 700,
-    lineHeight: 16,
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 18,
     textTransform: 'uppercase' as const,
   },
-  // Hint: 13px, 500 weight
   hint: {
     fontSize: 13,
     fontWeight: 500,
@@ -129,3 +125,31 @@ export const ShadowSize = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 390;
+
+/**
+ * Layout constants every screen shares. `gutter` exists because screens used
+ * to hardcode their own edge padding — 16 on Home/Search/Requests, 20 on the
+ * profiles, Spacing.four (24) on the detail screens — so content edges visibly
+ * jumped when switching tabs. One value, one alignment.
+ */
+export const Layout = {
+  gutter: 16,
+  // 12 is what the great majority of cards across the app already use — the two
+  // Card components were the odd ones out at 14 and 16.
+  cardRadius: 12,
+  cardGap: 12,
+} as const;
+
+/**
+ * Card lift. Android ignores shadowColor/Opacity/Radius entirely and needs
+ * `elevation`; iOS without a shadowOffset paints an even halo instead of a
+ * drop shadow. Both were missing from the ui.tsx Card, so cards were flat on
+ * Android and slightly smudged on iOS.
+ */
+export const CardShadow = {
+  shadowColor: '#000000',
+  shadowOpacity: 0.06,
+  shadowOffset: { width: 0, height: 2 },
+  shadowRadius: 8,
+  elevation: 2,
+} as const;

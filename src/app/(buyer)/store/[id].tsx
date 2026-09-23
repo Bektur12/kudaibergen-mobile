@@ -13,7 +13,7 @@ import {
 	useColorScheme,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Colors, Spacing, Typography } from '@/constants/theme'
+import { Colors, Spacing, Typography, Layout } from '@/constants/theme'
 import { Header } from '@/components/ui/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	storeHeader: {
-		padding: Spacing.four,
+		padding: Layout.gutter,
 		flexDirection: 'row',
 		gap: Spacing.three,
 	},
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
 	},
 	statsGrid: {
 		flexDirection: 'row',
-		paddingHorizontal: Spacing.four,
+		paddingHorizontal: Layout.gutter,
 		paddingVertical: Spacing.three,
 		gap: Spacing.two,
 	},
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		borderBottomWidth: 1,
 		borderBottomColor: Colors.light.border,
-		paddingHorizontal: Spacing.four,
+		paddingHorizontal: Layout.gutter,
 	},
 	tab: {
 		flex: 1,
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
 		textAlign: 'center',
 	},
 	tabContent: {
-		padding: Spacing.four,
+		padding: Layout.gutter,
 	},
 	sectionTitle: {
 		fontSize: 16,
