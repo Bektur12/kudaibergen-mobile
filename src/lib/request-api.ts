@@ -15,6 +15,8 @@ export interface OfferSummary {
 	deliveryDays: number | null
 	status: OfferStatus | string
 	createdAt: string
+	/** The chat this offer's reply already landed in — no separate "accept" step opens it, it exists from the moment the seller replies. */
+	chatId: number
 }
 
 export interface RequestDetails {
@@ -86,6 +88,8 @@ export interface OfferDetails {
 	deliveryDays: number | null
 	status: OfferStatus
 	createdAt: string
+	/** Chat created immediately alongside the offer — the reply is posted there as the first message. */
+	chatId: number
 }
 
 export interface CreateOfferPayload {

@@ -39,13 +39,19 @@ export default function SellerRequestDetailScreen() {
 	const handleSubmit = async () => {
 		setSending(true)
 		try {
-			await createOffer({
+			// No separate "buyer accepts" step anymore — the chat exists the
+			// moment this reply is sent, so jump straight into it instead of
+			// just going back to the requests list.
+			const offer = await createOffer({
 				requestId: Number(id),
 				price: price.trim() ? parseInt(price.replace(/\D/g, ''), 10) : undefined,
 				comment: comment.trim() || undefined,
 				deliveryDays: deliveryDays.trim() ? parseInt(deliveryDays.replace(/\D/g, ''), 10) : undefined,
 			})
-			router.back()
+			router.replace({
+				pathname: '/(seller)/chat/[id]',
+				params: { id: offer.chatId.toString(), name: 'Покупатель' },
+			})
 		} catch (err) {
 			Alert.alert('Не удалось отправить', err instanceof ApiError ? err.message : 'Попробуйте ещё раз')
 		} finally {

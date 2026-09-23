@@ -6,7 +6,6 @@ import { Colors, Spacing, Typography } from '@/constants/theme'
 import { getPartCategoryInfo } from '@/data/parts'
 import { ApiError } from '@/lib/api'
 import {
-	acceptOffer,
 	cancelRequest,
 	extendRequest,
 	getRequest,
@@ -46,7 +45,6 @@ export default function RequestDetailScreen() {
 
 	const [request, setRequest] = useState<RequestDetails | null>(null)
 	const [loading, setLoading] = useState(true)
-	const [busyOfferId, setBusyOfferId] = useState<number | null>(null)
 	const [busyAction, setBusyAction] = useState(false)
 
 	useEffect(() => {
@@ -67,20 +65,13 @@ export default function RequestDetailScreen() {
 		}
 	}, [id])
 
-	const handleAccept = async (offer: OfferSummary) => {
-		if (busyOfferId) return
-		setBusyOfferId(offer.id)
-		try {
-			const result = await acceptOffer(offer.id)
-			router.replace({
-				pathname: '/(buyer)/chat/[id]',
-				params: { id: result.chatId.toString(), name: offer.storeName },
-			})
-		} catch (err) {
-			Alert.alert('Не удалось принять', err instanceof ApiError ? err.message : 'Попробуйте ещё раз')
-		} finally {
-			setBusyOfferId(null)
-		}
+	// No "accept" step anymore — the chat already exists the moment the
+	// seller replied, so this just opens it.
+	const openOfferChat = (offer: OfferSummary) => {
+		router.push({
+			pathname: '/(buyer)/chat/[id]',
+			params: { id: offer.chatId.toString(), name: offer.storeName },
+		})
 	}
 
 	const handleExtend = async () => {
@@ -205,18 +196,17 @@ export default function RequestDetailScreen() {
 									Доставка: {offer.deliveryDays} дн.
 								</Text>
 							)}
-							{offer.status === 'ACTIVE' && isActive && (
+							<View style={styles.offerFooter}>
 								<Button
-									title={busyOfferId === offer.id ? 'Принимаем...' : 'Принять и написать'}
-									onPress={() => handleAccept(offer)}
-									disabled={busyOfferId !== null}
+									title="Написать"
+									onPress={() => openOfferChat(offer)}
 									size="small"
 									style={styles.acceptBtn}
 								/>
-							)}
-							{offer.status !== 'ACTIVE' && (
-								<Badge label={offer.status} variant="gray" size="small" />
-							)}
+								{offer.status !== 'ACTIVE' && (
+									<Badge label={offer.status} variant="gray" size="small" />
+								)}
+							</View>
 						</Card>
 					))
 				)}
@@ -307,7 +297,13 @@ const styles = StyleSheet.create({
 		fontSize: 12,
 		marginBottom: Spacing.two,
 	},
-	acceptBtn: {
+	offerFooter: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Spacing.two,
 		marginTop: Spacing.two,
+	},
+	acceptBtn: {
+		marginTop: 0,
 	},
 })
