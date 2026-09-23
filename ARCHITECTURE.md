@@ -2,6 +2,8 @@
 
 ## 1. Архитектурная Диаграмма
 
+git
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     МОБИЛЬНОЕ ПРИЛОЖЕНИЕ                         │
@@ -67,27 +69,32 @@
 ## 2. Слои Архитектуры
 
 ### 2.1 Presentation Layer
+
 - **Screens** - Экраны приложения
 - **Components** - Переиспользуемые UI компоненты
 - **Navigation** - Роутинг (Expo Router)
 
 ### 2.2 State Management Layer
+
 - **Contexts** - Global state (auth, app data)
 - **Hooks** - Custom hooks (useAuth, useApp)
 - **Types** - TypeScript interfaces
 
 ### 2.3 Design System Layer
+
 - **Colors** - Палитра (light/dark)
 - **Typography** - Шрифты и размеры
 - **Spacing** - Система отступов
 - **Components** - UI library
 
 ### 2.4 API Layer (Future)
+
 - **REST Endpoints** - Для данных
 - **WebSocket** - Для real-time чатов
 - **Authentication** - JWT
 
 ### 2.5 Database Layer (Future)
+
 - **PostgreSQL** - Основная БД
 - **Redis** - Кеш и sessions
 
@@ -211,6 +218,7 @@ App (_layout.tsx)
 ## 5. State Management Structure
 
 ### 5.1 AuthContext
+
 ```typescript
 {
   user: {
@@ -228,6 +236,7 @@ App (_layout.tsx)
 ```
 
 ### 5.2 AppContext
+
 ```typescript
 {
   // Requests
@@ -258,6 +267,7 @@ App (_layout.tsx)
 ## 6. Дизайн-Система
 
 ### 6.1 Colors
+
 ```
 Light Mode:
 - background: #F4F6F8
@@ -277,6 +287,7 @@ Dark Mode:
 ```
 
 ### 6.2 Typography
+
 ```
 - Price: 34px, 800 weight
 - Heading: 24px, 700 weight
@@ -287,11 +298,13 @@ Dark Mode:
 ```
 
 ### 6.3 Spacing
+
 ```
 2px, 4px, 8px, 16px, 24px, 32px, 48px, 64px
 ```
 
 ### 6.4 Border Radius
+
 ```
 8px (small)
 12px (medium)
@@ -368,6 +381,7 @@ kudaibergen-rn/
 ## 8. Technology Stack
 
 ### Frontend
+
 - React Native 0.86.2
 - Expo 57.0.16
 - Expo Router 57.0.16
@@ -375,14 +389,17 @@ kudaibergen-rn/
 - React 19.2.3
 
 ### State Management
+
 - React Context API
 - Custom Hooks
 
 ### UI/UX
+
 - Design System (Colors, Typography, Spacing)
 - 11 Reusable Components
 
 ### Future Backend
+
 - Node.js + Express
 - PostgreSQL
 - Redis
