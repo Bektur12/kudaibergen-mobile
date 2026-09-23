@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "13064381361",
+    "project_id": "kudaibergen-294af",
+    "storage_bucket": "kudaibergen-294af.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:13064381361:android:0b6e0457e028bbca5f1390",
+        "android_client_info": {
+          "package_name": "com.bekturillo.kudaibergenrn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_QYZcjf4BlTmrehSzhuIod03gb7GL-Jo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
