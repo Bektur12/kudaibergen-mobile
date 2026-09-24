@@ -10,7 +10,8 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.bekturillo.kudaibergenrn",
-      "appleTeamId": "53P57V3A74"
+      "appleTeamId": "53P57V3A74",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,6 +22,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.bekturillo.kudaibergenrn",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
@@ -55,7 +57,18 @@
           "icon": "./assets/images/icon.png",
           "color": "#FFFFFF"
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "./plugins/withRNFirebaseDisableSPM"
     ],
     "experiments": {
       "typedRoutes": true,
