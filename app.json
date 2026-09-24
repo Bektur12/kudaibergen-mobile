@@ -68,7 +68,7 @@
           }
         }
       ],
-      "./plugins/withRNFirebaseDisableSPM"
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

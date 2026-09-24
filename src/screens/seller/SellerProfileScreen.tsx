@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { C, Stars, Divider, ListRow, ScreenHeader } from '@/components/ui';
-import { Layout } from '@/constants/theme';
+import { CreditCard, Wallet, Bell, BadgeCheck, Plus, MapPin, Phone, Clock, Pencil, Trash2 } from 'lucide-react-native';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/auth';
 import { ApiError } from '@/lib/api';
@@ -51,9 +51,9 @@ const VERIFICATION_LABELS: Record<string, string> = {
 };
 
 const MENU_ITEMS = [
-  { icon: '💳', label: 'Способы оплаты' },
-  { icon: '💰', label: 'Комиссии и расчеты' },
-  { icon: '🔔', label: 'Уведомления' },
+  { icon: <CreditCard size={20} color={C.textSecondary} />, label: 'Способы оплаты' },
+  { icon: <Wallet size={20} color={C.textSecondary} />, label: 'Комиссии и расчеты' },
+  { icon: <Bell size={20} color={C.textSecondary} />, label: 'Уведомления' },
 ];
 
 const styles = StyleSheet.create({
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: C.surface,
-    paddingHorizontal: Layout.gutter,
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
   shopInfo: {
@@ -109,7 +109,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   statusText: {
     fontSize: 11,
@@ -128,7 +131,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     backgroundColor: C.surface,
     marginTop: 8,
-    paddingHorizontal: Layout.gutter,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -149,7 +152,7 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: C.surface,
     marginTop: 8,
-    paddingHorizontal: Layout.gutter,
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
   sectionHeaderRow: {
@@ -170,6 +173,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 10,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   branchDetail: {
     fontSize: 12,
@@ -460,8 +468,10 @@ export default function SellerProfileScreen() {
             <Text style={styles.shopType}>{store.businessType || 'Магазин'}</Text>
             <View style={styles.statusBadges}>
               <View style={styles.statusBadge}>
+                {(store.verificationStatus === 'TRUSTED' || store.verificationStatus === 'VERIFIED') && (
+                  <BadgeCheck size={14} color={C.success} />
+                )}
                 <Text style={styles.statusText}>
-                  {store.verificationStatus === 'TRUSTED' || store.verificationStatus === 'VERIFIED' ? '✅ ' : ''}
                   {VERIFICATION_LABELS[store.verificationStatus] ?? store.verificationStatus}
                 </Text>
               </View>
@@ -493,7 +503,7 @@ export default function SellerProfileScreen() {
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Филиалы</Text>
             <TouchableOpacity onPress={() => openBranchModal()}>
-              <Text style={{ fontSize: 18 }}>➕</Text>
+              <Plus size={22} color={C.primary} />
             </TouchableOpacity>
           </View>
           {branches.length === 0 ? (
@@ -501,19 +511,22 @@ export default function SellerProfileScreen() {
           ) : (
             branches.map((branch) => (
               <View key={branch.id} style={styles.branchCard}>
-                <Text style={styles.branchDetail}>📍 {branch.city}, {branch.address}</Text>
-                {branch.phone && <Text style={styles.branchDetail}>📞 {branch.phone}</Text>}
+                <View style={styles.detailRow}><MapPin size={14} color={C.textTertiary} /><Text style={styles.branchDetail}>{branch.city}, {branch.address}</Text></View>
+                {branch.phone && <View style={styles.detailRow}><Phone size={14} color={C.textTertiary} /><Text style={styles.branchDetail}>{branch.phone}</Text></View>}
                 {branch.workHours && (
-                  <Text style={styles.branchDetail}>
-                    🕐 {branch.workHours.days.join(', ')}: {branch.workHours.open}-{branch.workHours.close}
-                  </Text>
+                  <View style={styles.detailRow}>
+                    <Clock size={14} color={C.textTertiary} />
+                    <Text style={styles.branchDetail}>
+                      {branch.workHours.days.join(', ')}: {branch.workHours.open}-{branch.workHours.close}
+                    </Text>
+                  </View>
                 )}
                 <View style={styles.branchActions}>
                   <TouchableOpacity style={styles.branchActionButton} onPress={() => openBranchModal(branch)}>
-                    <Text style={{ fontSize: 14 }}>✏️</Text>
+                    <Pencil size={15} color={C.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.branchActionButton} onPress={() => removeBranch(branch.id)}>
-                    <Text style={{ fontSize: 14 }}>🗑️</Text>
+                    <Trash2 size={15} color={C.error} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -550,7 +563,7 @@ export default function SellerProfileScreen() {
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Шаблоны ответов</Text>
             <TouchableOpacity onPress={() => openTemplateModal()}>
-              <Text style={{ fontSize: 18 }}>➕</Text>
+              <Plus size={22} color={C.primary} />
             </TouchableOpacity>
           </View>
           {templates.length === 0 ? (
@@ -566,10 +579,10 @@ export default function SellerProfileScreen() {
                 <Text style={styles.branchDetail}>{template.body}</Text>
                 <View style={styles.branchActions}>
                   <TouchableOpacity style={styles.branchActionButton} onPress={() => openTemplateModal(template)}>
-                    <Text style={{ fontSize: 14 }}>✏️</Text>
+                    <Pencil size={15} color={C.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.branchActionButton} onPress={() => removeTemplate(template.id)}>
-                    <Text style={{ fontSize: 14 }}>🗑️</Text>
+                    <Trash2 size={15} color={C.error} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -579,7 +592,7 @@ export default function SellerProfileScreen() {
 
         {/* Menu */}
         <View style={styles.menuSection}>
-          <Text style={[styles.sectionTitle, { paddingHorizontal: Layout.gutter, paddingTop: 16, marginBottom: 0 }]}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: 20, paddingTop: 16, marginBottom: 0 }]}>
             Настройки магазина
           </Text>
           {MENU_ITEMS.map((item) => (

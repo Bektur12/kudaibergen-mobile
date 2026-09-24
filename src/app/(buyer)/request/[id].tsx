@@ -1,3 +1,4 @@
+import { Star } from 'lucide-react-native'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -198,9 +199,12 @@ export default function RequestDetailScreen() {
 						<Card key={offer.id} variant="outlined" style={styles.offerCard}>
 							<View style={styles.titleRow}>
 								<Text style={[styles.offerStore, { color: colors.text }]}>{offer.storeName}</Text>
-								<Text style={[styles.offerRating, { color: colors.textSecondary }]}>
-									★ {offer.storeRating.toFixed(1)}
-								</Text>
+								<View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+									<Star size={14} color="#F5A524" fill="#F5A524" />
+									<Text style={[styles.offerRating, { color: colors.textSecondary }]}>
+										{offer.storeRating.toFixed(1)}
+									</Text>
+								</View>
 							</View>
 							{offer.price != null && (
 								<Text style={[styles.offerPrice, { color: colors.accent }]}>

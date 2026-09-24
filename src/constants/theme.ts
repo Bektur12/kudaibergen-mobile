@@ -4,13 +4,13 @@ import { Platform } from 'react-native';
 // Same values as the `C` palette in components/ui.tsx — the two systems must
 // not drift, or the tab bar ends up a different shade than the buttons.
 const palette = {
-  background: '#F2F2F2',
+  background: '#F4F4F6',
   surface: '#FFFFFF',
-  surfaceAlt: '#F7F7F7',
+  surfaceAlt: '#F9F9FB',
   text: '#1A1A1A',
   textSecondary: '#4A4A4A',
   textTertiary: '#6B6B6B',
-  border: '#DDDDDD',
+  border: '#E7E7EB',
   accent: '#E8590C',
   accentHover: '#D04E08',
   success: '#2B8A3E',

@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { C, Avatar, Stars, ListRow } from '@/components/ui';
-import { Layout } from '@/constants/theme';
+import { MapPin, CreditCard, Bell, Shield, Pencil, Plus, Star, Trash2 } from 'lucide-react-native';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/auth';
 import { updateMe } from '@/lib/auth-api';
@@ -28,10 +28,10 @@ import {
 } from '@/lib/vehicle-api';
 
 const MENU_ITEMS = [
-  { icon: '📍', label: 'Адреса доставки' },
-  { icon: '💳', label: 'Способы оплаты' },
-  { icon: '🔔', label: 'Уведомления' },
-  { icon: '🛡️', label: 'Конфиденциальность' },
+  { icon: <MapPin size={20} color={C.textSecondary} />, label: 'Адреса доставки' },
+  { icon: <CreditCard size={20} color={C.textSecondary} />, label: 'Способы оплаты' },
+  { icon: <Bell size={20} color={C.textSecondary} />, label: 'Уведомления' },
+  { icon: <Shield size={20} color={C.textSecondary} />, label: 'Конфиденциальность' },
 ];
 
 const styles = StyleSheet.create({
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: C.surface,
-    paddingHorizontal: Layout.gutter,
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
   headerTitle: {
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   vehiclesSection: {
     backgroundColor: C.surface,
     marginTop: 8,
-    paddingHorizontal: Layout.gutter,
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
   sectionTitle: {
@@ -143,9 +143,12 @@ const styles = StyleSheet.create({
   },
   addVehicleButton: {
     backgroundColor: C.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: 6,
     marginTop: 12,
   },
   addVehicleText: {
@@ -336,7 +339,7 @@ export default function ProfileScreen() {
             <Stars rating={0} count={0} />
           </View>
           <TouchableOpacity style={styles.editButton} onPress={openProfileModal}>
-            <Text style={{ fontSize: 16 }}>✏️</Text>
+            <Pencil size={16} color={C.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -347,7 +350,7 @@ export default function ProfileScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text style={styles.sectionTitle}>Мои автомобили</Text>
             <TouchableOpacity onPress={() => openVehicleModal()}>
-              <Text style={{ fontSize: 18 }}>➕</Text>
+              <Plus size={22} color={C.primary} />
             </TouchableOpacity>
           </View>
           {loadingVehicles ? (
@@ -373,27 +376,28 @@ export default function ProfileScreen() {
                 <View style={styles.vehicleActions}>
                   {!vehicle.isDefault && (
                     <TouchableOpacity style={styles.actionButton} onPress={() => setDefault(vehicle)}>
-                      <Text style={{ fontSize: 14 }}>⭐</Text>
+                      <Star size={15} color={C.textSecondary} />
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity style={styles.actionButton} onPress={() => openVehicleModal(vehicle)}>
-                    <Text style={{ fontSize: 14 }}>✏️</Text>
+                    <Pencil size={15} color={C.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.actionButton} onPress={() => removeVehicle(vehicle.id)}>
-                    <Text style={{ fontSize: 14 }}>🗑️</Text>
+                    <Trash2 size={15} color={C.error} />
                   </TouchableOpacity>
                 </View>
               </View>
             ))
           )}
           <TouchableOpacity style={styles.addVehicleButton} onPress={() => openVehicleModal()}>
-            <Text style={styles.addVehicleText}>➕ Добавить авто</Text>
+            <Plus size={18} color="#fff" />
+            <Text style={styles.addVehicleText}>Добавить авто</Text>
           </TouchableOpacity>
         </View>
 
         {/* Menu */}
         <View style={styles.menuSection}>
-          <Text style={[styles.sectionTitle, { paddingHorizontal: Layout.gutter, paddingTop: 16 }]}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: 20, paddingTop: 16 }]}>
             Настройки
           </Text>
           {MENU_ITEMS.map((item) => (
