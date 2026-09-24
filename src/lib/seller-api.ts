@@ -111,6 +111,8 @@ export interface SellerRequestRow {
 	expiresAt: string
 	seenAt: string | null
 	repliedAt: string | null
+	/** Photo of the part the buyer attached — lets the seller judge the request without opening it. */
+	photoUrl: string | null
 }
 
 export function getMyStoreRequests(filter: SellerRequestFilter = 'ALL', page = 0, size = 20) {

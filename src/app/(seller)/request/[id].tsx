@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, useColorScheme } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Image, KeyboardAvoidingView, Platform, Alert, useColorScheme } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Colors, Spacing, Typography, Layout } from '@/constants/theme'
 import { Header } from '@/components/ui/Header'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { resolveMediaUrl } from '@/lib/chat-api'
 import { createOffer } from '@/lib/request-api'
 import { ApiError } from '@/lib/api'
 
@@ -13,7 +14,7 @@ export default function SellerRequestDetailScreen() {
 	// These come straight from the requests list (SellerRequestRow) that
 	// navigated here — no second fetch needed, GET /requests/{id} is scoped
 	// to the buyer who owns it anyway.
-	const { id, categoryLabel, description, car, budgetMin, budgetMax, currency } = useLocalSearchParams<{
+	const { id, categoryLabel, description, car, budgetMin, budgetMax, currency, photoUrl } = useLocalSearchParams<{
 		id: string
 		categoryLabel?: string
 		description?: string
@@ -21,6 +22,7 @@ export default function SellerRequestDetailScreen() {
 		budgetMin?: string
 		budgetMax?: string
 		currency?: string
+		photoUrl?: string
 	}>()
 	const colorScheme = useColorScheme() ?? 'dark'
 	const isDark = colorScheme === 'dark'
@@ -81,6 +83,13 @@ export default function SellerRequestDetailScreen() {
 						</Text>
 						{!!car && (
 							<Text style={[styles.carYear, { color: colors.textSecondary }]}>{car}</Text>
+						)}
+						{!!photoUrl && (
+							<Image
+								source={{ uri: resolveMediaUrl(photoUrl)! }}
+								style={styles.requestPhoto}
+								resizeMode="cover"
+							/>
 						)}
 						<Text style={[styles.description, { color: colors.text }]}>{description}</Text>
 						{budgetLine && (
@@ -150,6 +159,12 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		fontWeight: '500',
 		marginBottom: Spacing.two,
+	},
+	requestPhoto: {
+		width: '100%',
+		height: 180,
+		borderRadius: Layout.cardRadius,
+		marginVertical: Spacing.two,
 	},
 	description: {
 		fontSize: 14,

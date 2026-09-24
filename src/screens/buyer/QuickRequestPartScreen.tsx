@@ -1,14 +1,16 @@
 import { Btn, C } from '@/components/ui'
 import { PART_CATEGORIES } from '@/data/parts'
 import { ApiError } from '@/lib/api'
-import { createRequest } from '@/lib/request-api'
+import { createRequest, uploadRequestPhoto } from '@/lib/request-api'
 import { listStores, type ApiPartCategory } from '@/lib/store-api'
 import type { ProductCategory } from '@/types'
 import { Ionicons } from '@expo/vector-icons'
+import * as ImagePicker from 'expo-image-picker'
 import { useRouter } from 'expo-router'
 import { useRef, useState } from 'react'
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -38,6 +40,7 @@ export default function QuickRequestPartScreen() {
   const [description, setDescription] = useState('')
   const [budget, setBudget] = useState('')
   const [isUrgent, setIsUrgent] = useState(false)
+  const [photoUri, setPhotoUri] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   // Stable for the lifetime of this screen — a retried tap on the same
   // in-flight submission won't create a second request server-side. Generated
@@ -65,6 +68,50 @@ export default function QuickRequestPartScreen() {
         prev && prev.id === part.id ? { ...prev, sellersCount: 0 } : prev
       )
     }
+  }
+
+  // A photo of the broken part is the fastest way past the naming problem —
+  // the buyer often doesn't know what the part is called, and the seller
+  // recognises it on sight. Camera first, gallery as the fallback.
+  const pickPhoto = async (from: 'camera' | 'library') => {
+    try {
+      const permission =
+        from === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!permission.granted) {
+        Alert.alert(
+          from === 'camera' ? 'Нужен доступ к камере' : 'Нужен доступ к галерее',
+          'Разрешите доступ в настройках телефона'
+        )
+        return
+      }
+      const result =
+        from === 'camera'
+          ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
+          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 })
+      if (result.canceled || !result.assets[0]) return
+      setPhotoUri(result.assets[0].uri)
+    } catch (err) {
+      Alert.alert('Не удалось получить фото', err instanceof Error ? err.message : 'Попробуйте ещё раз')
+    }
+  }
+
+  const addPhoto = () => {
+    Alert.alert('Фото детали', 'Так продавцу не придётся угадывать, что вам нужно', [
+      { text: 'Сфотографировать', onPress: () => pickPhoto('camera') },
+      { text: 'Выбрать из галереи', onPress: () => pickPhoto('library') },
+      { text: 'Отмена', style: 'cancel' },
+    ])
+  }
+
+  // Same Blob dance as chat media: Expo SDK 57's global fetch rejects the
+  // classic {uri, name, type} shorthand, and an RN File's `name` is
+  // getter-only, so the filename goes through append()'s third argument.
+  const toFilePart = async (uri: string, type: string): Promise<Blob> => {
+    const res = await fetch(uri)
+    const blob = await res.blob()
+    return new Blob([blob], { type })
   }
 
   const handleSubmit = async () => {
@@ -96,6 +143,22 @@ export default function QuickRequestPartScreen() {
         },
         idempotencyKey.current
       )
+
+      // Uploaded after the request exists, so a failed photo costs the photo
+      // and not the request the buyer just filled in.
+      if (photoUri) {
+        try {
+          const form = new FormData()
+          form.append('file', await toFilePart(photoUri, 'image/jpeg'), 'part.jpg')
+          await uploadRequestPhoto(result.id, form)
+        } catch (err) {
+          Alert.alert(
+            'Запрос отправлен, но фото не загрузилось',
+            err instanceof ApiError ? err.message : 'Продавцы увидят запрос без фото'
+          )
+        }
+      }
+
       router.replace({
         pathname: '/(buyer)/request/[id]',
         params: { id: String(result.id), sellersMatched: String(result.sellersMatched) },
@@ -272,7 +335,47 @@ export default function QuickRequestPartScreen() {
             />
           </View>
 
-          {/* Step 4: Budget */}
+          {/* Step 4: Photo of the part */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+              ФОТО ДЕТАЛИ (ОПЦИОНАЛЬНО)
+            </Text>
+            {photoUri ? (
+              <View style={styles.photoPreviewRow}>
+                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                <View style={{ flex: 1, gap: 8 }}>
+                  <Text style={[styles.photoHint, { color: colors.textSecondary }]}>
+                    Продавцы сразу увидят, что именно вам нужно
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity onPress={addPhoto}>
+                      <Text style={[styles.photoAction, { color: colors.primary }]}>Заменить</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setPhotoUri(null)}>
+                      <Text style={[styles.photoAction, { color: colors.error }]}>Удалить</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={addPhoto}
+                style={[styles.photoButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+              >
+                <Ionicons name="camera-outline" size={22} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.photoButtonText, { color: colors.textPrimary }]}>
+                    Добавить фото детали
+                  </Text>
+                  <Text style={[styles.photoHint, { color: colors.textTertiary }]}>
+                    Не нужно знать название — продавец узнает по фото
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Step 5: Budget */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
               ШАГ 4: БЮДЖЕТ (ОПЦИОНАЛЬНО)
@@ -507,6 +610,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  photoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  photoButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  photoHint: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  photoPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  photoPreview: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+  },
+  photoAction: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   urgentButton: {
     width: 48,

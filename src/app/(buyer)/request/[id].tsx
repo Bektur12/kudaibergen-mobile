@@ -13,12 +13,14 @@ import {
 	type OfferSummary,
 	type RequestDetails,
 } from '@/lib/request-api'
+import { resolveMediaUrl } from '@/lib/chat-api'
 import { toProductCategory } from '@/lib/store-api'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import {
 	ActivityIndicator,
 	Alert,
+	Image,
 	ScrollView,
 	StyleSheet,
 	Text,
@@ -145,6 +147,14 @@ export default function RequestDetailScreen() {
 						<Text style={[styles.carYear, { color: colors.textSecondary }]}>{request.car}</Text>
 					)}
 
+					{resolveMediaUrl(request.photoUrl) && (
+						<Image
+							source={{ uri: resolveMediaUrl(request.photoUrl)! }}
+							style={styles.requestPhoto}
+							resizeMode="cover"
+						/>
+					)}
+
 					<View style={styles.divider} />
 
 					<Text style={[styles.label, { color: colors.textSecondary }]}>Описание</Text>
@@ -265,6 +275,12 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		fontWeight: '700',
 		color: '#fff',
+	},
+	requestPhoto: {
+		width: '100%',
+		height: 180,
+		borderRadius: Layout.cardRadius,
+		marginTop: Spacing.three,
 	},
 	emptyOffersTitle: {
 		fontSize: 15,

@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  Image,
   TouchableOpacity,
   ScrollView,
   Modal,
@@ -18,6 +19,7 @@ import { C } from '@/components/ui'
 import { getTimeAgo, getTimeRemaining } from '@/data/requests'
 import { getPartCategoryInfo } from '@/data/parts'
 import { toProductCategory } from '@/lib/store-api'
+import { resolveMediaUrl } from '@/lib/chat-api'
 import {
   getMyStoreRequests,
   getMyTemplates,
@@ -194,6 +196,7 @@ export default function RequestsScreen() {
         budgetMin: request.budgetMin?.toString() ?? '',
         budgetMax: request.budgetMax?.toString() ?? '',
         currency: request.currency ?? '',
+        photoUrl: request.photoUrl ?? '',
       },
     })
   }
@@ -204,6 +207,7 @@ export default function RequestsScreen() {
     const timeAgo = getTimeAgo(new Date(request.createdAt))
     const timeRemaining = getTimeRemaining(new Date(request.expiresAt))
     const partInfo = getPartCategoryInfo(toProductCategory(request.category))
+    const photoUrl = resolveMediaUrl(request.photoUrl)
 
     return (
       <TouchableOpacity
@@ -229,6 +233,8 @@ export default function RequestsScreen() {
               color={isSelected ? colors.primary : colors.textTertiary}
             />
           )}
+          {/* The whole point of the photo: judge the request without opening it. */}
+          {photoUrl && <Image source={{ uri: photoUrl }} style={styles.cardPhoto} />}
           <View style={{ flex: 1 }}>
             <View style={styles.titleRow}>
               <Text style={[styles.carModel, { color: colors.textPrimary }]}>
@@ -578,6 +584,7 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
   requestCard: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, gap: 8 },
+  cardPhoto: { width: 52, height: 52, borderRadius: 8, backgroundColor: C.surfaceAlt },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 6 },
   carModel: { fontSize: 17, fontWeight: '700', flex: 1 },
   urgentBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, gap: 4 },

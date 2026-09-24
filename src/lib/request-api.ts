@@ -34,6 +34,8 @@ export interface RequestDetails {
 	createdAt: string
 	expiresAt: string
 	offers: OfferSummary[]
+	/** Photo of the broken part, so a seller can recognise it without the buyer naming it. Same URL shape as chat media — pass through resolveMediaUrl. */
+	photoUrl: string | null
 }
 
 export interface CreateRequestPayload {
@@ -57,6 +59,18 @@ export function createRequest(payload: CreateRequestPayload, idempotencyKey?: st
 		method: 'POST',
 		body: payload,
 		idempotencyKey,
+	})
+}
+
+/**
+ * Attaches the part photo after the request exists, rather than making the
+ * create endpoint multipart. Keeps `createRequest` a plain JSON call, and a
+ * failed upload costs the photo, not the whole request.
+ */
+export function uploadRequestPhoto(requestId: number, form: FormData) {
+	return apiFetch<RequestDetails>(`/api/v1/requests/${requestId}/photo`, {
+		method: 'POST',
+		body: form,
 	})
 }
 
