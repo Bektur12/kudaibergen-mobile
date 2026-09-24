@@ -67,7 +67,8 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

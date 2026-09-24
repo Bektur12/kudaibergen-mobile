@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { C, T, BackBtn } from '@/components/ui';
+import { Search, X, Star } from 'lucide-react-native';
 import { PART_CATEGORIES } from '@/data/parts';
 import { listStores, type ApiPartCategory, type StoreSummary } from '@/lib/store-api';
 
@@ -190,7 +191,7 @@ export default function SearchScreen({
       {/* Search Input */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Text>🔍</Text>
+          <Search size={18} color={C.textTertiary} />
           <TextInput
             value={searchText}
             onChangeText={setSearchText}
@@ -205,7 +206,7 @@ export default function SearchScreen({
           />
           {searchText.length > 0 && (
             <TouchableOpacity onPress={() => setSearchText('')}>
-              <Text>✕</Text>
+              <X size={18} color={C.textTertiary} />
             </TouchableOpacity>
           )}
         </View>
@@ -267,7 +268,7 @@ export default function SearchScreen({
                     {store.cities.length > 0 ? ` · ${store.cities.join(', ')}` : ''}
                   </Text>
                   <View style={styles.resultFooter}>
-                    <Text style={{ fontSize: 11, color: C.textTertiary }}>⭐ {store.rating.toFixed(1)}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}><Star size={12} color="#F5A524" fill="#F5A524" /><Text style={{ fontSize: 12, color: C.textTertiary }}>{store.rating.toFixed(1)}</Text></View>
                     <Text style={{ fontSize: 11, color: C.textTertiary }}>
                       {store.reviewCount} отзывов
                     </Text>
